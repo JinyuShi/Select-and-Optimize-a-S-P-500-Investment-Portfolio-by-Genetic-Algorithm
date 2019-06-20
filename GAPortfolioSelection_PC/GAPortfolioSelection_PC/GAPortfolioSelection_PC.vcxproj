@@ -84,7 +84,14 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\Song\source\repos\GAPortfolioSelection_PC\curl\include;C:\Users\Song\source\repos\GAPortfolioSelection_PC\curlcpp\include;C:\Users\Song\source\repos\GAPortfolioSelection_PC\json\jsoncpp-master\dist;C:\Users\Song\source\repos\GAPortfolioSelection_PC\sqlite-snapshot-201808271713;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_MBCS;CURL_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>C:\Users\Song\source\repos\GAPortfolioSelection_PC\curl\build\lib\x64;C:\Users\Song\source\repos\GAPortfolioSelection_PC\curlcpp\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcurld.lib;curlcppd.lib;Crypt32.lib;ws2_32.lib;winmm.lib;wldap32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -115,6 +122,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\json\jsoncpp-master\dist\jsoncpp.cpp" />
+    <ClCompile Include="..\..\sqlite-snapshot-201808271713\sqlite3.c" />
+    <ClCompile Include="GAPortfolioSelection_PC.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
