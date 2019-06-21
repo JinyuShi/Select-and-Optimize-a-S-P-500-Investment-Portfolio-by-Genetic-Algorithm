@@ -4,6 +4,7 @@
 #include <fstream>
 #include <vector>
 #include <stdio.h>
+#include<algorithm>
 
 #include "curl_easy.h"
 #include "curl_form.h"
@@ -285,7 +286,7 @@ int PopulateStockTable(const Json::Value & root, string symbol, sqlite3 *db)
 	int count = 0;
 	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
 	{
-		cout << *itr << endl;
+		//cout << *itr << endl;
 		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
 		{
 			//cout << inner.key() << ": " << *inner << endl;
@@ -325,7 +326,94 @@ int PopulateStockTable(const Json::Value & root, string symbol, sqlite3 *db)
 	return 0;
 }
 
-int PopulateSP500Table(const Json::Value & root, sqlite3 *db)
+int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, string symbol, sqlite3 *db)
+{
+	string date;
+	float open, high, low, close, adjusted_close;
+	int volume;
+	Stock myStock(symbol);
+	int count = 0;
+	for (Json::Value::const_iterator itr = root1.begin(); itr != root1.end(); itr++)
+	{
+		//cout << *itr << endl;
+		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
+		{
+			//cout << inner.key() << ": " << *inner << endl;
+
+			if (inner.key().asString() == "adjusted_close")
+				adjusted_close = (float)atof(inner->asCString());
+			else if (inner.key().asString() == "close")
+				close = (float)atof(inner->asCString());
+			else if (inner.key() == "date")
+				date = inner->asString();
+			else if (inner.key().asString() == "high")
+				high = (float)atof(inner->asCString());
+			else if (inner.key().asString() == "low")
+				low = (float)atof(inner->asCString());
+			else if (inner.key() == "open")
+				open = (float)atof(inner->asCString());
+			else if (inner.key().asString() == "volume")
+				volume = atoi(inner->asCString());
+			else
+			{
+				cout << "Invalid json field" << endl;
+				system("pause");
+				return -1;
+			}
+		}
+		Trade aTrade(date, open, high, low, close, adjusted_close, volume);
+		myStock.addTrade(aTrade);
+		count++;
+
+		// Execute SQL
+		char stockDB_insert_table[512];
+		sprintf_s(stockDB_insert_table, "INSERT INTO %s (id, symbol, date, open, high, low, close, adjusted_close, volume) VALUES(%d, \"%s\", \"%s\", %f, %f, %f, %f, %f, %d)", symbol.c_str(), count, symbol.c_str(), date.c_str(), open, high, low, close, adjusted_close, volume);
+		if (InsertTable(stockDB_insert_table, db) == -1)
+			return -1;
+	}
+	for (Json::Value::const_iterator itr = root2.begin(); itr != root2.end(); itr++)
+	{
+		//cout << *itr << endl;
+		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
+		{
+			//cout << inner.key() << ": " << *inner << endl;
+
+			if (inner.key().asString() == "adjusted_close")
+				adjusted_close = (float)atof(inner->asCString());
+			else if (inner.key().asString() == "close")
+				close = (float)atof(inner->asCString());
+			else if (inner.key() == "date")
+				date = inner->asString();
+			else if (inner.key().asString() == "high")
+				high = (float)atof(inner->asCString());
+			else if (inner.key().asString() == "low")
+				low = (float)atof(inner->asCString());
+			else if (inner.key() == "open")
+				open = (float)atof(inner->asCString());
+			else if (inner.key().asString() == "volume")
+				volume = atoi(inner->asCString());
+			else
+			{
+				cout << "Invalid json field" << endl;
+				system("pause");
+				return -1;
+			}
+		}
+		Trade aTrade(date, open, high, low, close, adjusted_close, volume);
+		myStock.addTrade(aTrade);
+		count++;
+
+		// Execute SQL
+		char stockDB_insert_table[512];
+		sprintf_s(stockDB_insert_table, "INSERT INTO %s (id, symbol, date, open, high, low, close, adjusted_close, volume) VALUES(%d, \"%s\", \"%s\", %f, %f, %f, %f, %f, %d)", symbol.c_str(), count, symbol.c_str(), date.c_str(), open, high, low, close, adjusted_close, volume);
+		if (InsertTable(stockDB_insert_table, db) == -1)
+			return -1;
+	}
+	cout << myStock;
+	return 0;
+}
+
+int PopulateSP500Table(const Json::Value & root, sqlite3 *db, vector<string> & Symbol)
 {
 	int count = 0;
 	string name, symbol, sector;
@@ -349,13 +437,22 @@ int PopulateSP500Table(const Json::Value & root, sqlite3 *db)
 				return -1;
 			}
 		}
-		count++;
+		if (symbol == "BRK.B")
+			symbol = "BRK-B";
+		else if (symbol == "BF.B")
+			symbol = "BF-B";
 
-		// Execute SQL
-		char sp500_insert_table[512];
-		sprintf_s(sp500_insert_table, "INSERT INTO SP500 (id, symbol, name, sector) VALUES(%d, \"%s\", \"%s\", \"%s\")", count, symbol.c_str(), name.c_str(), sector.c_str());
-		if (InsertTable(sp500_insert_table, db) == -1)
-			return -1;
+		if (symbol != "LUK" && symbol != "MON")
+		{
+			count++;
+			Symbol.push_back(symbol);
+
+			// Execute SQL
+			char sp500_insert_table[512];
+			sprintf_s(sp500_insert_table, "INSERT INTO SP500 (id, symbol, name, sector) VALUES(%d, \"%s\", \"%s\", \"%s\")", count, symbol.c_str(), name.c_str(), sector.c_str());
+			if (InsertTable(sp500_insert_table, db) == -1)
+				return -1;
+		}
 	}
 	return 0;
 }
@@ -376,54 +473,86 @@ int main(void)
 	if (CreateTable(sp500_create_table.c_str(), stockDB) == -1)
 		return -1;
 
+	vector<string> Symbol;
 	string sp500_data_request = "https://pkgstore.datahub.io/core/s-and-p-500-companies/constituents_json/data/64dd3e9582b936b0352fdd826ecd3c95/constituents_json.json";
 	//string sp500_data_request = "https://datahub.io/core/s-and-p-500-companies/r/0.html";
 	Json::Value sp500_root;   // will contains the root value after parsing.
 	if (RetrieveMarketData(sp500_data_request, sp500_root) == -1)
 		return -1;
-	if (PopulateSP500Table(sp500_root, stockDB) == -1)
+	if (PopulateSP500Table(sp500_root, stockDB, Symbol) == -1)
 		return -1;
 
 	string sp500_select_table = "SELECT * FROM SP500;";
 	if (DisplayTable(sp500_select_table.c_str(), stockDB) == -1)
 		return -1;
 
-	string stockDB_symbol = "MSFT";
+	for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
+	{
+		string stockDB_symbol = "Stock_" + *it;
+		if (stockDB_symbol == "Stock_BRK-B")
+			stockDB_symbol = "Stock_BRK_B";
+		else if (stockDB_symbol == "Stock_BF-B")
+			stockDB_symbol = "Stock_BF_B";
+		std::string stockDB_drop_table = "DROP TABLE IF EXISTS " + stockDB_symbol + ";";
+		if (DropTable(stockDB_drop_table.c_str(), stockDB) == -1)
+			return -1;
 
-	std::string stockDB_drop_table = "DROP TABLE IF EXISTS " + stockDB_symbol + ";";
-	if (DropTable(stockDB_drop_table.c_str(), stockDB) == -1)
-		return -1;
+		string stockDB_create_table = "CREATE TABLE " + stockDB_symbol
+			+ "(id INT PRIMARY KEY NOT NULL,"
+			+ "symbol CHAR(20) NOT NULL,"
+			+ "date CHAR(20) NOT NULL,"
+			+ "open REAL NOT NULL,"
+			+ "high REAL NOT NULL,"
+			+ "low REAL NOT NULL,"
+			+ "close REAL NOT NULL,"
+			+ "adjusted_close REAL NOT NULL,"
+			+ "volume INT NOT NULL);";
 
-	string stockDB_create_table = "CREATE TABLE " + stockDB_symbol
-		+ "(id INT PRIMARY KEY NOT NULL,"
-		+ "symbol CHAR(20) NOT NULL,"
-		+ "date CHAR(20) NOT NULL,"
-		+ "open REAL NOT NULL,"
-		+ "high REAL NOT NULL,"
-		+ "low REAL NOT NULL,"
-		+ "close REAL NOT NULL,"
-		+ "adjusted_close REAL NOT NULL,"
-		+ "volume INT NOT NULL);";
+		if (CreateTable(stockDB_create_table.c_str(), stockDB) == -1)
+			return -1;
 
-	if (CreateTable(stockDB_create_table.c_str(), stockDB) == -1)
-		return -1;
+		if (stockDB_symbol != "Stock_MSI")
+		{
+			string stock_url_common = "https://eodhistoricaldata.com/api/eod/";
+			string stock_start_date = "2008-01-01";
+			string stock_end_date = "2019-06-06";
+			string api_token = "5ba84ea974ab42.45160048";
+			string stockDB_data_request = stock_url_common + *it + ".US?" +
+				"from=" + stock_start_date + "&to=" + stock_end_date + "&api_token=" + api_token + "&period=d&fmt=json";
 
-	string stock_url_common = "https://eodhistoricaldata.com/api/eod/";
-	string stock_start_date = "2018-09-01";
-	string stock_end_date = "2018-09-11";
-	string api_token = "5ba84ea974ab42.45160048";
-	string stockDB_data_request = stock_url_common + stockDB_symbol + ".US?" +
-		"from=" + stock_start_date + "&to=" + stock_end_date + "&api_token=" + api_token + "&period=d&fmt=json";
+			Json::Value stockDB_root;   // will contains the root value after parsing.
+			if (RetrieveMarketData(stockDB_data_request, stockDB_root) == -1)
+				return -1;
+			if (PopulateStockTable(stockDB_root, stockDB_symbol, stockDB) == -1)
+				return -1;
+		}
+		else
+		{
+			string stock_url_common = "https://eodhistoricaldata.com/api/eod/";
+			string stock_start_date1 = "2008-01-01";
+			string stock_end_date1 = "2017-11-20";
+			string stock_start_date2 = "2018-01-02";
+			string stock_end_date2 = "2019-06-06";
+			string api_token = "5ba84ea974ab42.45160048";
+			string stockDB_data_request1 = stock_url_common + *it + ".US?" +
+				"from=" + stock_start_date1 + "&to=" + stock_end_date1 + "&api_token=" + api_token + "&period=d&fmt=json";
+			string stockDB_data_request2 = stock_url_common + *it + ".US?" +
+				"from=" + stock_start_date2 + "&to=" + stock_end_date2 + "&api_token=" + api_token + "&period=d&fmt=json";
 
-	Json::Value stockDB_root;   // will contains the root value after parsing.
-	if (RetrieveMarketData(stockDB_data_request, stockDB_root) == -1)
-		return -1;
-	if (PopulateStockTable(stockDB_root, stockDB_symbol, stockDB) == -1)
-		return -1;
+			Json::Value stockDB_root1;   // will contains the root value after parsing.
+			Json::Value stockDB_root2;   // will contains the root value after parsing.
+			if (RetrieveMarketData(stockDB_data_request1, stockDB_root1) == -1)
+				return -1;
+			if (RetrieveMarketData(stockDB_data_request2, stockDB_root2) == -1)
+				return -1;
+			if (PopulateMSITable(stockDB_root1, stockDB_root2, stockDB_symbol, stockDB) == -1)
+				return -1;
+		}
 
-	string stockDB_select_table = "SELECT * FROM " + stockDB_symbol + ";";
-	if (DisplayTable(stockDB_select_table.c_str(), stockDB) == -1)
-		return -1;
+		string stockDB_select_table = "SELECT * FROM " + stockDB_symbol + ";";
+		if (DisplayTable(stockDB_select_table.c_str(), stockDB) == -1)
+			return -1;
+	}
 
 	// Close Database
 	CloseDatabase(stockDB);
