@@ -128,6 +128,11 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\jinyu\source\repos\st290\GAPortfolioSelection_PC\curl\include;C:\Users\jinyu\source\repos\st290\GAPortfolioSelection_PC\curlcpp\include;C:\Users\jinyu\source\repos\st290\GAPortfolioSelection_PC\json\jsoncpp-master\dist;C:\Users\jinyu\source\repos\st290\GAPortfolioSelection_PC\sqlite-snapshot-201808271713;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DatabaseLogic.h" />
+    <ClInclude Include="GALogic.h" />
+    <ClInclude Include="MarketDataLogic.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
