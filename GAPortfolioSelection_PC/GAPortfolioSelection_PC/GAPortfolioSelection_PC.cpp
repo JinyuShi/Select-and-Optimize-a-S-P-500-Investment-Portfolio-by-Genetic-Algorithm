@@ -94,7 +94,7 @@ int main(void)
 
 			string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
 			Json::Value stockfundamental_root;
-			if (RetrieveFundamentalData(stockfundamental_data_request, stockfundamental_root) == -1)
+			if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
 				return -1;
 			if (RetrieveFundamental(stockfundamental_root, myStock) == -1)
 				return - 1;
@@ -125,7 +125,7 @@ int main(void)
 
 			string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
 			Json::Value stockfundamental_root;
-			if (RetrieveFundamentalData(stockfundamental_data_request, stockfundamental_root) == -1)
+			if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
 				return -1;
 			if (RetrieveFundamental(stockfundamental_root, myStock) == -1)
 				return -1;
