@@ -419,7 +419,7 @@ int RetrieveFundamental(const Json::Value & root, Stock & mystock)
 	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
 	{
 		//cout << *itr << endl;
-		if (itr.key().asString() == "HighLights")
+		if (itr.key().asString() == "Highlights")
 
 			for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
 			{
@@ -427,20 +427,20 @@ int RetrieveFundamental(const Json::Value & root, Stock & mystock)
 				{
 					if ((inner->asString()).empty())
 					{
-						divyield = 0;
+						divyield = 0.0;
 					}
 					else
-						divyield = (float)(inner->asDouble());
+						divyield = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "PERatio")
 				{
 
 					if ((inner->asString()).empty())
 					{
-						peratio = 0;
+						peratio = 0.0;
 					}
 					else
-						peratio = (float)(inner->asDouble());
+						peratio = (float)atof(inner->asCString());
 				}
 			}
 		else if (itr.key().asString() == "Technicals")
@@ -450,46 +450,46 @@ int RetrieveFundamental(const Json::Value & root, Stock & mystock)
 				{
 					if ((inner->asString()).empty())
 					{
-						high52 = 0;
+						high52 = 0.0;
 					}
 					else
-						high52 = (float)(inner->asDouble());
+						high52 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "52WeekLow")
 				{
 					if ((inner->asString()).empty())
 					{
-						low52 = 0;
+						low52 = 0.0;
 					}
 					else
-						low52 = (float)(inner->asDouble());
+						low52 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "Beta")
 				{
 					if ((inner->asString()).empty())
 					{
-						beta = 0;
+						beta = 0.0;
 					}
 					else
-						beta = (float)(inner->asDouble());
+						beta = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "50DayMA")
 				{
 					if ((inner->asString()).empty())
 					{
-						ma50 = 0;
+						ma50 = 0.0;
 					}
 					else
-						ma50 = (float)(inner->asDouble());
+						ma50 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "200DayMA")
 				{
 					if ((inner->asString()).empty())
 					{
-						ma200 = 0;
+						ma200 = 0.0;
 					}
 					else
-						ma200 = (float)(inner->asDouble());
+						ma200 = (float)atof(inner->asCString());
 				}
 
 			}
