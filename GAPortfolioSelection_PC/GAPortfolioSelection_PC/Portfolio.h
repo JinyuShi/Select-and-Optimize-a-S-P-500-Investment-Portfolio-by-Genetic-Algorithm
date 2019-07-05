@@ -15,7 +15,6 @@ class Portfolio
 {
 private:
 	vector<Stock> Stock_List;
-	vector<float> Stock_Weight;
 public:
 	Portfolio() {}
 	~Portfolio() {}
