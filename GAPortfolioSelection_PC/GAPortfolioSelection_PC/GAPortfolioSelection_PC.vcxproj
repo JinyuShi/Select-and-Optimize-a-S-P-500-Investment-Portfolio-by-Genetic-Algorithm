@@ -131,6 +131,7 @@
   <ItemGroup>
     <ClInclude Include="DatabaseLogic.h" />
     <ClInclude Include="GALogic.h" />
+    <ClInclude Include="Portfolio.h" />
     <ClInclude Include="MarketDataLogic.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

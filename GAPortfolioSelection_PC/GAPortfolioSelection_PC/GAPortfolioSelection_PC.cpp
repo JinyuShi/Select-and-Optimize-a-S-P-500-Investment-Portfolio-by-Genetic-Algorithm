@@ -89,16 +89,16 @@ int main(void)
 			Json::Value stockDB_root;   // will contains the root value after parsing.
 			if (RetrieveMarketData(stockDB_data_request, stockDB_root) == -1)
 				return -1;
-			system("pause");
 			if (PopulateStockTable(stockDB_root, stockDB_symbol, myStock, stockDB) == -1)
 				return -1;
 
 			string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
 			Json::Value stockfundamental_root;
-			if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
+			if (RetrieveFundamentalData(stockfundamental_data_request, stockfundamental_root) == -1)
 				return -1;
 			if (RetrieveFundamental(stockfundamental_root, myStock) == -1)
 				return - 1;
+			myStock.addDailyReturns();
 			Stocks.push_back(myStock);
 		}
 		else
@@ -125,10 +125,11 @@ int main(void)
 
 			string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
 			Json::Value stockfundamental_root;
-			if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
+			if (RetrieveFundamentalData(stockfundamental_data_request, stockfundamental_root) == -1)
 				return -1;
 			if (RetrieveFundamental(stockfundamental_root, myStock) == -1)
 				return -1;
+			myStock.addDailyReturns();
 			Stocks.push_back(myStock);
 		}
 

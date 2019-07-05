@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 
 #define NUM_OF_STOCKS 505
 
@@ -24,6 +25,8 @@ public:
 		date(date_), open(open_), high(high_), low(low_), close(close_), adjusted_close(adjusted_close_), volume(volume_)
 	{}
 	~Trade() {}
+	string getDate() { return date; }
+	float getAdjClose() { return adjusted_close; }
 	friend ostream & operator << (ostream & out, const Trade & t)
 	{
 		out << "Date: " << t.date << " Open: " << t.open << " High: " << t.high << " Low: " << t.low << " Close: " << t.close << " Adjusted_Close: " << t.adjusted_close << " Volume: " << t.volume << endl;
@@ -71,9 +74,14 @@ public:
 	{
 		trades.push_back(aTrade);
 	}
-	void addDailyReturns(string date_, float return_)
+	void addDailyReturns()
 	{
-		dailyreturns.insert({ date_, return_ });
+		for (vector<Trade>::iterator itr = trades.begin() + 1; itr != trades.end(); itr++)
+		{
+			string date_ = (*itr).getDate();
+			float return_ = ((*itr).getAdjClose() - (*(itr - 1)).getAdjClose()) / ((*(itr - 1)).getAdjClose());
+			dailyreturns.insert({ date_, return_ });
+		}
 	}
 	void addRiskFreeRates(string date_, float riskfreerisk_)
 	{
