@@ -50,6 +50,10 @@ public:
 		peratio(peratio_), divyield(divyield_), beta(beta_), high52(high52_), low52(low52_), ma50(ma50_), ma200(ma200_)
 	{}
 	~Fundamental() {}
+	float getBeta()
+	{
+		return beta;
+	}
 	friend ostream & operator << (ostream & out, const Fundamental & f)
 	{
 		out << "P/E ratio: " << f.peratio << " Dividend Yield: " << f.divyield << " Beta: " << f.beta << " High 52Weeks: " << f.high52 << " Low 52Weeks: " << f.low52 << " MA 50Days: " << f.ma50 << " MA 200Days: " << f.ma200 << endl;
@@ -83,13 +87,62 @@ public:
 			dailyreturns.insert({ date_, return_ });
 		}
 	}
-	void addRiskFreeRates(string date_, float riskfreerisk_)
+	void addRiskFreeRates(string date_, float riskfreerate_)
 	{
-		riskfreerates.insert({ date_, riskfreerisk_ });
+		riskfreerates.insert({ date_, riskfreerate_ });
 	}
 	void addFundamental(Fundamental fundamental_)
 	{
 		fundamental = fundamental_;
+	}
+	map<string,float> getdailyreturn()
+	{
+		return dailyreturns;
+	}
+	map<string, float>getriskfreerates()
+	{
+		return riskfreerates;
+	}
+	float getbeta()
+	{
+		return fundamental.getBeta();
+	}
+	float CalRiskfreereturn()
+	{
+		float mean_riskfreereturn = 0;
+		int count = 0;
+		for (map<string, float>::iterator it = riskfreerates.begin(); it != riskfreerates.end(); it++)
+		{
+			mean_riskfreereturn += it->second;
+			count++;
+		}
+		mean_riskfreereturn /= count;
+		return mean_riskfreereturn;
+	}
+	float CalRet()
+	{
+		float mean_return = 0;
+		int count = 0;
+		for (map<string, float>::iterator it = dailyreturns.begin(); it != dailyreturns.end(); it++)
+		{
+			mean_return += it->second;
+			count++;
+		}
+		mean_return /= count;
+		return mean_return;
+	}
+	float CalStd()
+	{
+		float mean_return = CalRet();
+		float std = 0;
+		int count = 0;
+		for (map<string, float>::iterator it = dailyreturns.begin(); it != dailyreturns.end(); it++)
+		{
+			std += pow(it->second - mean_return, 2);
+			count++;
+		}
+		std /= count;
+		return sqrt(std);
 	}
 	friend ostream & operator << (ostream & out, const Stock & s)
 	{

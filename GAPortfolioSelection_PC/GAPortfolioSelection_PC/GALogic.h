@@ -13,6 +13,7 @@
 #include <math.h>
 #include <vector>
 #include <algorithm>
+#include "Portfolio.h"
 
 using namespace std;
 

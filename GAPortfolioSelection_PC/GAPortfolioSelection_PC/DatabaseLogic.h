@@ -35,7 +35,6 @@ int OpenDatabase(const char * name, sqlite3 * & db)
 	}
 	cout << "Opened database: " << name << endl;
 	return 0;
-
 }
 
 void CloseDatabase(sqlite3 *db)
@@ -141,6 +140,42 @@ int DisplayTable(const char *sql_select, sqlite3 *db)
 			}
 			cout << endl;
 		}
+	}
+	// This function properly releases the value array returned by sqlite3_get_table()
+	sqlite3_free_table(results);
+	return 0;
+}
+
+int GetStockSymbol(const char *sql_select, sqlite3 *db, vector<string> &Symbol)
+{
+	int rc = 0;
+	char *error = NULL;
+
+	char **results = NULL;
+	int rows, columns;
+	// A result table is memory data structure created by the sqlite3_get_table() interface.
+	// A result table records the complete query results from one or more queries.
+	sqlite3_get_table(db, sql_select, &results, &rows, &columns, &error);
+	if (rc)
+	{
+		cerr << "Error executing SQLite3 query: " << sqlite3_errmsg(db) << endl << endl;
+		sqlite3_free(error);
+		system("pause");
+		return -1;
+	}
+
+	// Retrieve Table
+	// Skip the Header
+	for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
+	{
+		// Determine Cell Position of Symbol only
+		// id symbol name sector
+		int cellPosition = (rowCtr * columns) + 1;
+
+		// Add Stock Symbol to Vector
+		string temp = results[cellPosition];
+		if (temp != "AET")
+			Symbol.push_back(temp);
 	}
 	// This function properly releases the value array returned by sqlite3_get_table()
 	sqlite3_free_table(results);
@@ -369,7 +404,7 @@ int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, strin
 	return 0;
 }
 
-int PopulateSP500Table(const Json::Value & root, sqlite3 *db, vector<string> & Symbol)
+int PopulateSP500Table(const Json::Value & root, sqlite3 *db)
 {
 	int count = 0;
 	string name, symbol, sector;
@@ -401,7 +436,6 @@ int PopulateSP500Table(const Json::Value & root, sqlite3 *db, vector<string> & S
 		if (symbol != "LUK" && symbol != "MON")
 		{
 			count++;
-			Symbol.push_back(symbol);
 
 			// Execute SQL
 			char sp500_insert_table[512];
@@ -413,8 +447,9 @@ int PopulateSP500Table(const Json::Value & root, sqlite3 *db, vector<string> & S
 	return 0;
 }
 
-int RetrieveFundamental(const Json::Value & root, Stock & mystock)
+int PopulateFundamentalTable(const Json::Value & root, int &count, string symbol, Stock & myStock, sqlite3 *db)
 {
+	//string BadData[] = { "AET","AMG","AGN","AIG","APA","ADSK","BHF","CA","CBOE","CTL","COTY","CSRA","CVS","XRAY","DLTR","EIX","EVHC","EQT","EFX","ESRX","GE","HES","HOLX","KHC","MAT","KORS","NOV","NWL","NFX","NWSA","NWS","NLSN","NI","NBL","PCG","PX","RRC","COL","SCG","SRCL","FTI","TWX","FOXA","FOX","WMB","ZBH" };
 	float peratio, divyield, beta, high52, low52, ma50, ma200;
 	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
 	{
@@ -425,22 +460,11 @@ int RetrieveFundamental(const Json::Value & root, Stock & mystock)
 			{
 				if (inner.key().asString() == "DividendYield")
 				{
-					if ((inner->asString()).empty())
-					{
-						divyield = 0.0;
-					}
-					else
-						divyield = (float)atof(inner->asCString());
+					divyield = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "PERatio")
 				{
-
-					if ((inner->asString()).empty())
-					{
-						peratio = 0.0;
-					}
-					else
-						peratio = (float)atof(inner->asCString());
+					peratio = (float)atof(inner->asCString());
 				}
 			}
 		else if (itr.key().asString() == "Technicals")
@@ -448,55 +472,118 @@ int RetrieveFundamental(const Json::Value & root, Stock & mystock)
 			{
 				if (inner.key().asString() == "52WeekHigh")
 				{
-					if ((inner->asString()).empty())
-					{
-						high52 = 0.0;
-					}
-					else
-						high52 = (float)atof(inner->asCString());
+					high52 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "52WeekLow")
 				{
-					if ((inner->asString()).empty())
-					{
-						low52 = 0.0;
-					}
-					else
-						low52 = (float)atof(inner->asCString());
+					low52 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "Beta")
 				{
-					if ((inner->asString()).empty())
-					{
-						beta = 0.0;
-					}
-					else
-						beta = (float)atof(inner->asCString());
+					beta = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "50DayMA")
 				{
-					if ((inner->asString()).empty())
-					{
-						ma50 = 0.0;
-					}
-					else
-						ma50 = (float)atof(inner->asCString());
+					ma50 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "200DayMA")
 				{
-					if ((inner->asString()).empty())
-					{
-						ma200 = 0.0;
-					}
-					else
-						ma200 = (float)atof(inner->asCString());
+					ma200 = (float)atof(inner->asCString());
 				}
 
 			}
 		
 	}
 	Fundamental fundamental(peratio, divyield, beta, high52, low52, ma50, ma200);
-	mystock.addFundamental(fundamental);
+	myStock.addFundamental(fundamental);
+
+	// Execute SQL
+	char stockDB_insert_table[512];
+	sprintf_s(stockDB_insert_table, "INSERT INTO FUNDAMENTAL (id, symbol, PERatio, DividendYield, Beta, High_52Week, Low_52Week, MA_50Day, MA_200Day) VALUES(%d, \"%s\", %f, %f, %f, %f, %f, %f, %f)", count, symbol.c_str(), peratio, divyield, beta, high52, low52, ma50, ma200);
+	if (InsertTable(stockDB_insert_table, db) == -1)
+		return -1;
+
+	return 0;
+}
+
+int PopulateRiskFreeReturnTable(const Json::Value & root, sqlite3 *db)
+{
+	string date;
+	float adjusted_close, risk_free_return;
+	float close_prices[3000] = {};
+	int count = 0;
+	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
+	{
+		//cout << *itr << endl;
+		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
+		{
+			//cout << inner.key() << ": " << *inner << endl;
+			{
+				if (inner.key() == "date")
+					date = inner->asString();
+				else if (inner.key().asString() == "adjusted_close")
+					adjusted_close = (float)(inner->asDouble());
+			}
+		}
+
+		if (date != "2010-10-11" && date != "2016-11-11")
+		{
+			close_prices[count] = adjusted_close;
+			count++;
+			// Execute SQL
+			char stockDB_insert_table[512];
+			if (count < 2)
+			{
+				sprintf_s(stockDB_insert_table, "INSERT INTO RiskFreeReturn (id, date, adjusted_close, risk_free_return) VALUES(%d, \"%s\", %f, %f)", count, date.c_str(), adjusted_close, 0.0);
+				if (InsertTable(stockDB_insert_table, db) == -1)
+					return -1;
+			}
+			else
+			{
+				risk_free_return = ((close_prices[count - 1]) / (close_prices[count - 2])) - 1;
+				sprintf_s(stockDB_insert_table, "INSERT INTO RiskFreeReturn (id, date, adjusted_close, risk_free_return) VALUES(%d, \"%s\", %f, %f)", count, date.c_str(), adjusted_close, risk_free_return);
+				if (InsertTable(stockDB_insert_table, db) == -1)
+					return -1;
+			}
+		}
+	}
+	return 0;
+}
+
+int PopulateNewSP500Table(const Json::Value & root, sqlite3 *db)
+{
+	int count = 0;
+	string name, symbol, sector;
+	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
+	{
+		cout << *itr << endl;
+		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
+		{
+			//cout << inner.key() << ": " << *inner << endl;
+
+			if (inner.key().asString() == "Security")
+				name = inner->asString();
+			else if (inner.key().asString() == "GICS Sector")
+				sector = inner->asString();
+			else if (inner.key() == "Symbol")
+				symbol = inner->asString();
+		}
+		if (symbol == "BRK.B")
+			symbol = "BRK-B";
+		else if (symbol == "BF.B")
+			symbol = "BF-B";
+
+		if (symbol != "LUK" && symbol != "MON")
+		{
+			count++;
+
+			// Execute SQL
+			char sp500_insert_table[512];
+			sprintf_s(sp500_insert_table, "INSERT INTO SP500_ (id, symbol, name, sector) VALUES(%d, \"%s\", \"%s\", \"%s\")", count, symbol.c_str(), name.c_str(), sector.c_str());
+			if (InsertTable(sp500_insert_table, db) == -1)
+				return -1;
+		}
+	}
 	return 0;
 }
 
