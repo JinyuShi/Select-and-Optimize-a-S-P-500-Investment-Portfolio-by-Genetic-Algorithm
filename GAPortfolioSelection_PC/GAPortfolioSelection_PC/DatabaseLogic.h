@@ -168,20 +168,105 @@ int GetStockSymbol(const char *sql_select, sqlite3 *db, vector<string> &Symbol)
 	// Skip the Header
 	for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
 	{
-		// Determine Cell Position of Symbol only
+		// Determine Cell Position of Symb
 		// id symbol name sector
 		int cellPosition = (rowCtr * columns) + 1;
 
 		// Add Stock Symbol to Vector
-		string temp = results[cellPosition];
-		if (temp != "AET")
-			Symbol.push_back(temp);
+		Symbol.push_back(results[cellPosition]);
 	}
 	// This function properly releases the value array returned by sqlite3_get_table()
 	sqlite3_free_table(results);
 	return 0;
 }
 
+int GetFundamental(const char *sql_select, sqlite3 *db, Stock& stock_)
+{
+	int rc = 0;
+	char *error = NULL;
+
+	char **results = NULL;
+	int rows, columns;
+	float peratio, divyield, beta, high52, low52, ma50, ma200;
+	// A result table is memory data structure created by the sqlite3_get_table() interface.
+	// A result table records the complete query results from one or more queries.
+	sqlite3_get_table(db, sql_select, &results, &rows, &columns, &error);
+	if (rc)
+	{
+		cerr << "Error executing SQLite3 query: " << sqlite3_errmsg(db) << endl << endl;
+		sqlite3_free(error);
+		system("pause");
+		return -1;
+	}
+
+	// Retrieve Table
+	// Skip the Header
+	for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
+	{
+		// id symbol peratio diviendyield beta high_52week low_52week ma_50day ma_200day
+		int SymbolPosition = (rowCtr * columns) + 1;
+		string symbol = results[SymbolPosition];
+		if (symbol == stock_.getsymbol())
+		{
+			peratio = stof(results[SymbolPosition + 1]);
+			divyield = stof(results[SymbolPosition + 2]);
+			beta = stof(results[SymbolPosition + 3]);
+			high52 = stof(results[SymbolPosition + 4]);
+			low52 = stof(results[SymbolPosition + 5]);
+			ma50 = stof(results[SymbolPosition + 6]);
+			ma200 = stof(results[SymbolPosition + 7]);
+			//Fundamental(float peratio_, float divyield_, float beta_, float high52_, float low52_, float ma50_, float ma200_) :peratio(peratio_), divyield(divyield_), beta(beta_), high52(high52_), low52(low52_), ma50(ma50_), ma200(ma200_)
+			stock_.addFundamental(Fundamental(peratio, divyield, beta, high52, low52, ma50, ma200));
+		}
+
+	}
+	// This function properly releases the value array returned by sqlite3_get_table()
+	sqlite3_free_table(results);
+	return 0;
+}
+
+int GetTrade(const char *sql_select, sqlite3 *db, Stock& stock_)
+{
+	int rc = 0;
+	char *error = NULL;
+
+	char **results = NULL;
+	int rows, columns;
+	string date;
+	float open, high, low, close, adjusted_close;
+	int volume;
+	// A result table is memory data structure created by the sqlite3_get_table() interface.
+	// A result table records the complete query results from one or more queries.
+	sqlite3_get_table(db, sql_select, &results, &rows, &columns, &error);
+	if (rc)
+	{
+		cerr << "Error executing SQLite3 query: " << sqlite3_errmsg(db) << endl << endl;
+		sqlite3_free(error);
+		system("pause");
+		return -1;
+	}
+
+	// Retrieve Table
+	// Skip the Header
+	for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
+	{
+		// id symbol date open high low close adjusted_close volume
+		int SymbolPosition = (rowCtr * columns) + 1;
+		date = string(results[SymbolPosition + 1]);
+		open = stof(results[SymbolPosition + 2]);
+		high = stof(results[SymbolPosition + 3]);
+		low = stof(results[SymbolPosition + 4]);
+		close = stof(results[SymbolPosition + 5]);
+		adjusted_close = stof(results[SymbolPosition + 6]);
+		volume = stoi(results[SymbolPosition + 7]);
+		//Trade(string date_, float open_, float high_, float low_, float close_, float adjusted_close_, int volume_) :date(date_), open(open_), high(high_), low(low_), close(close_), adjusted_close(adjusted_close_), volume(volume_)
+		Trade aTrade(date, open, high, low, close, adjusted_close, volume);
+		stock_.addTrade(aTrade);
+	}
+	// This function properly releases the value array returned by sqlite3_get_table()
+	sqlite3_free_table(results);
+	return 0;
+}
 //writing call back function for storing fetched values in memory
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -268,7 +353,7 @@ int RetrieveMarketData(string url_request, Json::Value & root)
 	return 0;
 }
 
-int PopulateStockTable(const Json::Value & root, string symbol, Stock & myStock, sqlite3 *db)
+int PopulateStockTable(const Json::Value & root, string symbol, sqlite3 *db)
 {
 	string date;
 	float open, high, low, close, adjusted_close;
@@ -303,8 +388,8 @@ int PopulateStockTable(const Json::Value & root, string symbol, Stock & myStock,
 				return -1;
 			}
 		}
-		Trade aTrade(date, open, high, low, close, adjusted_close, volume);
-		myStock.addTrade(aTrade);
+		//Trade aTrade(date, open, high, low, close, adjusted_close, volume);
+		//myStock.addTrade(aTrade);
 		count++;
 
 		// Execute SQL
@@ -313,11 +398,11 @@ int PopulateStockTable(const Json::Value & root, string symbol, Stock & myStock,
 		if (InsertTable(stockDB_insert_table, db) == -1)
 			return -1;
 	}
-	cout << myStock;
+	//cout << myStock;
 	return 0;
 }
 
-int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, string symbol, Stock &myStock, sqlite3 *db)
+int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, string symbol, sqlite3 *db)
 {
 	string date;
 	float open, high, low, close, adjusted_close;
@@ -352,8 +437,8 @@ int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, strin
 				return -1;
 			}
 		}
-		Trade aTrade(date, open, high, low, close, adjusted_close, volume);
-		myStock.addTrade(aTrade);
+		//Trade aTrade(date, open, high, low, close, adjusted_close, volume);
+		//myStock.addTrade(aTrade);
 		count++;
 
 		// Execute SQL
@@ -390,8 +475,8 @@ int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, strin
 				return -1;
 			}
 		}
-		Trade aTrade(date, open, high, low, close, adjusted_close, volume);
-		myStock.addTrade(aTrade);
+		//Trade aTrade(date, open, high, low, close, adjusted_close, volume);
+		//myStock.addTrade(aTrade);
 		count++;
 
 		// Execute SQL
@@ -400,7 +485,7 @@ int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, strin
 		if (InsertTable(stockDB_insert_table, db) == -1)
 			return -1;
 	}
-	cout << myStock;
+	//cout << myStock;
 	return 0;
 }
 
@@ -447,9 +532,8 @@ int PopulateSP500Table(const Json::Value & root, sqlite3 *db)
 	return 0;
 }
 
-int PopulateFundamentalTable(const Json::Value & root, int &count, string symbol, Stock & myStock, sqlite3 *db)
+int PopulateFundamentalTable(const Json::Value & root, int &count, string symbol, sqlite3 *db)
 {
-	//string BadData[] = { "AET","AMG","AGN","AIG","APA","ADSK","BHF","CA","CBOE","CTL","COTY","CSRA","CVS","XRAY","DLTR","EIX","EVHC","EQT","EFX","ESRX","GE","HES","HOLX","KHC","MAT","KORS","NOV","NWL","NFX","NWSA","NWS","NLSN","NI","NBL","PCG","PX","RRC","COL","SCG","SRCL","FTI","TWX","FOXA","FOX","WMB","ZBH" };
 	float peratio, divyield, beta, high52, low52, ma50, ma200;
 	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
 	{
@@ -460,11 +544,17 @@ int PopulateFundamentalTable(const Json::Value & root, int &count, string symbol
 			{
 				if (inner.key().asString() == "DividendYield")
 				{
-					divyield = (float)atof(inner->asCString());
+					if (inner->asString().empty())
+						divyield = 0.0;
+					else
+						divyield = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "PERatio")
 				{
-					peratio = (float)atof(inner->asCString());
+					if ((inner->asString()).empty())
+						peratio = 0.0;
+					else
+						peratio = (float)atof(inner->asCString());
 				}
 			}
 		else if (itr.key().asString() == "Technicals")
@@ -472,30 +562,45 @@ int PopulateFundamentalTable(const Json::Value & root, int &count, string symbol
 			{
 				if (inner.key().asString() == "52WeekHigh")
 				{
-					high52 = (float)atof(inner->asCString());
+					if ((inner->asString()).empty())
+						high52 = 0.0;
+					else
+						high52 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "52WeekLow")
 				{
-					low52 = (float)atof(inner->asCString());
+					if ((inner->asString()).empty())
+						low52 = 0.0;
+					else
+						low52 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "Beta")
 				{
-					beta = (float)atof(inner->asCString());
+					if ((inner->asString()).empty())
+						beta = 0.0;
+					else
+						beta = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "50DayMA")
 				{
-					ma50 = (float)atof(inner->asCString());
+					if ((inner->asString()).empty())
+						ma50 = 0.0;
+					else
+						ma50 = (float)atof(inner->asCString());
 				}
 				else if (inner.key().asString() == "200DayMA")
 				{
-					ma200 = (float)atof(inner->asCString());
+					if ((inner->asString()).empty())
+						ma200 = 0.0;
+					else
+						ma200 = (float)atof(inner->asCString());
 				}
 
 			}
-		
+
 	}
-	Fundamental fundamental(peratio, divyield, beta, high52, low52, ma50, ma200);
-	myStock.addFundamental(fundamental);
+	//Fundamental fundamental(peratio, divyield, beta, high52, low52, ma50, ma200);
+	//myStock.addFundamental(fundamental);
 
 	// Execute SQL
 	char stockDB_insert_table[512];

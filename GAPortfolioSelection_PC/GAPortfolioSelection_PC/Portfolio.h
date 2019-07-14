@@ -1,3 +1,4 @@
+/*
 #pragma once
 #ifndef Portfolio_h
 #define Portfolio_h
@@ -5,6 +6,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include<algorithm>
 
 #include "MarketDataLogic.h"
 #include "DatabaseLogic.h"
@@ -14,37 +16,37 @@ using namespace std;
 class Portfolio
 {
 private:
+	vector<string> Symbols;
 	map<Stock, float> Stocks;
-	float fitness;
+	map<string, float> DailyReturn;
+	float sharperatio, beta, mean_return, risk, fitness;
 public:
-	Portfolio(map<Stock,float>stocks_): Stocks(stocks_){}
+	Portfolio(map<Stock, float>stocks_) : Stocks(stocks_) {}
 	~Portfolio() {}
 	map<string, float> getdailyreturn()
 	{
 		map<string, float>portfolio_dailyreturn;
-		vector<string>date;
-		for (map<string, float>::iterator it = (Stocks.begin())->first.getdailyreturn().begin(); it != (Stocks.begin())->first.getdailyreturn().end(); it++)
+		float dailyreturn;
+		string date;
+		for (map<string, float>::iterator it = (Stocks.begin()->first).getdailyreturn().begin(); it != (Stocks.begin()->first).getdailyreturn().end(); it++)
 		{
-			date.push_back(it->first);
-		}
-		for (vector<string>::iterator itr = date.begin(); itr != date.end(); itr++)
-		{
-			float dailyreturn = 0;
+			date = it->first;
+			dailyreturn = 0;
 			for (map<Stock, float>::iterator inner = Stocks.begin(); inner != Stocks.end(); inner++)
 			{
-				dailyreturn += ((inner->first).getdailyreturn())[*itr] * (inner->second);
+				dailyreturn += ((inner->first).getdailyreturn)[date] * (inner->second);
 			}
-			portfolio_dailyreturn[*itr] = dailyreturn;
+			portfolio_dailyreturn[date] = dailyreturn;
 		}
 		return portfolio_dailyreturn;
 	}
 	float CalReturn()
 	{
 		float portfolio_return = 0;
-		for (map<Stock,float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 		{
 			float stock_return = (it->first).CalRet();
-			portfolio_return += stock_return*(it->second);
+			portfolio_return += stock_return * (it->second);
 		}
 		return portfolio_return;
 	}
@@ -66,17 +68,17 @@ public:
 		float portfolio_beta = 0;
 		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 		{
-			portfolio_beta += ((it->first).getbeta())*(it->second);
+			portfolio_beta += ((it->first).getbeta)*(it->second);
 		}
 		return portfolio_beta;
 	}
 	float CalSharpeRatio()
 	{
-		return (CalReturn() - (Stocks.begin()->first).CalRiskfreereturn()) / CalRisk();
+		return (CalReturn() - (Stocks.begin()->first).CalRiskfreereturn) / CalRisk();
 	}
 	float CalTreynor()
 	{
-		return  (CalReturn() - (Stocks.begin()->first).CalRiskfreereturn()) / CalBeta();
+		return  (CalReturn() - (Stocks.begin()->first).CalRiskfreereturn) / CalBeta();
 	}
 	float CalDiverIndex()
 	{
@@ -85,7 +87,7 @@ public:
 		float total_weight = 0, p = 0, H = 0;
 		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 		{
-			p = pow(it->second, 2)*pow((it->first).CalStd(), 2);
+			p = pow(it->second, 2)*pow((it->first).CalStd, 2);
 			total_weight += p;
 			H += pow(p, 2);
 		}
@@ -106,3 +108,4 @@ public:
 
 };
 #endif
+*/

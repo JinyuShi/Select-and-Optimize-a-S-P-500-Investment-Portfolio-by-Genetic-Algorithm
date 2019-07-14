@@ -16,6 +16,8 @@
 
 #include "MarketDataLogic.h"
 #include "DatabaseLogic.h"
+#include "Portfolio.h"
+#include "Utility.h"
 
 #define NUM_OF_STOCKS 505
 
@@ -51,10 +53,23 @@ int main(void)
 	if (DisplayTable(sp500_select_table.c_str(), stockDB) == -1)
 		return -1;
 	*/
+	//vector<string> Symbol_before;
+	vector<string> Symbol_after;
 	vector<string> Symbol;
-	vector<Stock> Stocks;
+	map<string, Stock> Stocks;
+
+	string sp500_select_table = "SELECT * FROM SP500;";
+	if (GetStockSymbol(sp500_select_table.c_str(), stockDB, Symbol) == -1)
+		return -1;
+	string new_sp500_select_table = "SELECT * FROM SP500_;";
+	if (GetStockSymbol(new_sp500_select_table.c_str(), stockDB, Symbol_after) == -1)
+		return -1;
+	vector<string> adding = Symbol_after - Symbol;
+	vector<string> deleting = Symbol - Symbol_after;
+
 
 	bool done = true;
+
 	while (done)
 	{
 		string input;
@@ -63,13 +78,11 @@ int main(void)
 			<< "2: Retrieve Stock Trade Data and Save to Database " << endl
 			<< "3: Retrieve Stock Fundamental Data and Save to Database " << endl
 			<< "4: Retrieve Risk Free Rate Data and Save to Database " << endl
-			<< "5: Display Stock Data " << endl
+			<< "5: Construct Stock Objects " << endl
 			<< "6: Exit " << endl << endl;
 		cin >> input;
 		int option = stoi(input);
-		switch (option)
-		{
-		case 1:
+		if (option == 1)
 		{
 			string sp500_select_table = "SELECT * FROM SP500;";
 			if (GetStockSymbol(sp500_select_table.c_str(), stockDB, Symbol) == -1)
@@ -80,11 +93,10 @@ int main(void)
 			}
 			cout << endl;
 		}
-		case 2:
+		else if (option == 2)
 		{
 			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
 			{
-				Stock myStock(*it);
 				string stockDB_symbol = "Stock_" + *it;
 				if (stockDB_symbol == "Stock_BRK-B")
 					stockDB_symbol = "Stock_BRK_B";
@@ -120,7 +132,7 @@ int main(void)
 					Json::Value stockDB_root;   // will contains the root value after parsing.
 					if (RetrieveMarketData(stockDB_data_request, stockDB_root) == -1)
 						return -1;
-					if (PopulateStockTable(stockDB_root, stockDB_symbol, myStock, stockDB) == -1)
+					if (PopulateStockTable(stockDB_root, stockDB_symbol, stockDB) == -1)
 						return -1;
 				}
 				else
@@ -142,17 +154,16 @@ int main(void)
 						return -1;
 					if (RetrieveMarketData(stockDB_data_request2, stockDB_root2) == -1)
 						return -1;
-					if (PopulateMSITable(stockDB_root1, stockDB_root2, stockDB_symbol, myStock, stockDB) == -1)
+					if (PopulateMSITable(stockDB_root1, stockDB_root2, stockDB_symbol, stockDB) == -1)
 						return -1;
 				}
 
-				Stocks.push_back(myStock);
 				string stockDB_select_table = "SELECT * FROM " + stockDB_symbol + ";";
 				if (DisplayTable(stockDB_select_table.c_str(), stockDB) == -1)
 					return -1;
 			}
 		}
-		case 3:
+		else if (option == 3)
 		{
 			int count = 1;
 			std::string stockDB_drop_table = "DROP TABLE IF EXISTS Fundamental;";
@@ -165,17 +176,27 @@ int main(void)
 			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
 			{
 				cout << *it << endl;
-				
+
 				string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
 				Json::Value stockfundamental_root;
 				if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
 					return -1;
-				if (PopulateFundamentalTable(stockfundamental_root, count, *it, *(Stocks.begin()+count-1), stockDB) == -1)
+				if (PopulateFundamentalTable(stockfundamental_root, count, *it, stockDB) == -1)
+					return -1;
+				count++;
+			}
+			for (vector<string>::iterator it = adding.begin(); it != adding.end(); it++)
+			{
+				string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
+				Json::Value stockfundamental_root;
+				if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
+					return -1;
+				if (PopulateFundamentalTable(stockfundamental_root, count, *it, stockDB) == -1)
 					return -1;
 				count++;
 			}
 		}
-		case 4:
+		else if (option == 4)
 		{
 			std::string riskfreereturn_drop_table = "DROP TABLE IF EXISTS RiskFreeReturn;";
 			if (DropTable(riskfreereturn_drop_table.c_str(), stockDB) == -1)
@@ -191,17 +212,37 @@ int main(void)
 			if (PopulateRiskFreeReturnTable(riskfreereturn_root, stockDB) == -1)
 				return -1;
 		}
-		case 5:
+		else if (option == 5)
 		{
+			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
+			{
+				Stocks[*it] = Stock(*it);
+			}
 
+			string fundamental_select_table = "SELECT * FROM Fundamental;";
+			for (map<string, Stock>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+			{
+				if (GetFundamental(fundamental_select_table.c_str(), stockDB, it->second) == -1)
+					return -1;
+
+				string stockDB_symbol = "Stock_" + it->first;
+				if (stockDB_symbol == "Stock_BRK-B")
+					stockDB_symbol = "Stock_BRK_B";
+				else if (stockDB_symbol == "Stock_BF-B")
+					stockDB_symbol = "Stock_BF_B";
+				string trade_select_table = "SELECT * FROM " + stockDB_symbol + ";";
+				if (GetTrade(trade_select_table.c_str(), stockDB, it->second) == -1)
+					return -1;
+				it->second.addDailyReturns();
+			}
 		}
-		case 6:
+		else if (option == 6)
 		{
 			done = false;
 		}
-		}
-
 	}
+
+
 	//----------Create New SP500 Table----------
 	/*
 	std::string sp500_drop_table = "DROP TABLE IF EXISTS SP500_;";
@@ -242,14 +283,14 @@ int main(void)
 	string riskfreereturn_create_table = "CREATE TABLE RiskFreeReturn (id INT PRIMARY KEY NOT NULL, date CHAR(20) NOT NULL, adjusted_close REAL NOT NULL, risk_free_return REAL NOT NULL);";
 	if (CreateTable(riskfreereturn_create_table.c_str(), stockDB) == -1)
 		return -1;
-	
+
 	string riskfreereturn_data_request = "https://eodhistoricaldata.com/api/eod/TNX.INDX?from=2008-01-01&to=2019-07-10&api_token=5ba84ea974ab42.45160048&period=d&fmt=json";
 	Json::Value riskfreereturn_root;
 	if (RetrieveMarketData(riskfreereturn_data_request, riskfreereturn_root) == -1)
 		return -1;
 	if (PopulateRiskFreeReturnTable(riskfreereturn_root, stockDB) == -1)
 		return -1;
-    */
+	*/
 
 	//----------Pupolate Fundamental Table----------
 	/*
@@ -320,7 +361,7 @@ int main(void)
 			if (PopulateStockTable(stockDB_root, stockDB_symbol, myStock, stockDB) == -1)
 				return -1;
 
-		    string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
+			string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
 			Json::Value stockfundamental_root;
 			if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
 				return -1;
@@ -328,7 +369,7 @@ int main(void)
 				return - 1;
 			myStock.addDailyReturns();
 			Stocks.push_back(myStock);
-			
+
 		}
 		else
 		{
@@ -352,7 +393,7 @@ int main(void)
 			if (PopulateMSITable(stockDB_root1, stockDB_root2, stockDB_symbol, myStock, stockDB) == -1)
 				return -1;
 
-			
+
 			string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
 			Json::Value stockfundamental_root;
 			if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
@@ -361,7 +402,7 @@ int main(void)
 				return -1;
 			myStock.addDailyReturns();
 			Stocks.push_back(myStock);
-			
+
 		}
 
 		string stockDB_select_table = "SELECT * FROM " + stockDB_symbol + ";";

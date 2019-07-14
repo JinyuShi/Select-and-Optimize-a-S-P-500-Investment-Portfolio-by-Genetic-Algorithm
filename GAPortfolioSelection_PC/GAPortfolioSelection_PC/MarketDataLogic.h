@@ -67,12 +67,13 @@ private:
 	string symbol;
 	vector<Trade> trades;
 	map<string, float> dailyreturns;
-	map<string,float> riskfreerates;
+	map<string, float> riskfreerates;
 	Fundamental fundamental;
 
 public:
 	Stock(string symbol_) :symbol(symbol_)
 	{}
+	Stock() {}
 	~Stock() {}
 	void addTrade(Trade aTrade)
 	{
@@ -80,28 +81,39 @@ public:
 	}
 	void addDailyReturns()
 	{
-		for (vector<Trade>::iterator itr = trades.begin() + 1; itr != trades.end(); itr++)
+		for (vector<Trade>::iterator itr = trades.begin(); itr != trades.end(); itr++)
 		{
-			string date_ = (*itr).getDate();
-			float return_ = ((*itr).getAdjClose() - (*(itr - 1)).getAdjClose()) / ((*(itr - 1)).getAdjClose());
-			dailyreturns.insert({ date_, return_ });
+			if (itr == trades.begin())
+			{
+				dailyreturns[itr->getDate()] = 0.0;
+			}
+			else
+			{
+				string date_ = itr->getDate();
+				float return_ = ((*itr).getAdjClose() - (*(itr - 1)).getAdjClose()) / ((*(itr - 1)).getAdjClose());
+				dailyreturns[date_] = return_;
+			}
 		}
 	}
 	void addRiskFreeRates(string date_, float riskfreerate_)
 	{
-		riskfreerates.insert({ date_, riskfreerate_ });
+		riskfreerates[date_] = riskfreerate_;
 	}
 	void addFundamental(Fundamental fundamental_)
 	{
 		fundamental = fundamental_;
 	}
-	map<string,float> getdailyreturn()
+	map<string, float> getdailyreturn()
 	{
 		return dailyreturns;
 	}
 	map<string, float>getriskfreerates()
 	{
 		return riskfreerates;
+	}
+	string getsymbol()
+	{
+		return symbol;
 	}
 	float getbeta()
 	{
@@ -147,9 +159,9 @@ public:
 	friend ostream & operator << (ostream & out, const Stock & s)
 	{
 		out << "Symbol: " << s.symbol << endl;
+		out << s.fundamental << endl;
 		for (vector<Trade>::const_iterator itr = s.trades.begin(); itr != s.trades.end(); itr++)
-			out << *itr;
-		out << s.fundamental;
+			out << *itr << endl;
 		for (map<string, float>::const_iterator itr = s.dailyreturns.begin(); itr != s.dailyreturns.end(); itr++)
 			out << itr->first << " : " << itr->second << endl;
 		return out;
