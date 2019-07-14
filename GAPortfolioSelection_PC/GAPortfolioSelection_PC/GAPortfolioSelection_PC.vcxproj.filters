@@ -25,4 +25,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MarketDataLogic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DatabaseLogic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GALogic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Portfolio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
