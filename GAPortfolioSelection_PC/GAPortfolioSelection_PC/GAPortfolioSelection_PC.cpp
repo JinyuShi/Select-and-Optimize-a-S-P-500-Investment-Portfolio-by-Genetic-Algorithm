@@ -17,6 +17,7 @@
 #include "MarketDataLogic.h"
 #include "DatabaseLogic.h"
 #include "Portfolio.h"
+#include "GALogic.h"
 #include "Utility.h"
 
 #define NUM_OF_STOCKS 505
@@ -25,13 +26,66 @@ using namespace std;
 
 int main(void)
 {
+	
+	
+	//seed the random number generator
+	srand((int)time(NULL));
+
 	const char * stockDB_name = "Stocks.db";
 	sqlite3 * stockDB = NULL;
 	if (OpenDatabase(stockDB_name, stockDB) == -1)
 		return -1;
 
-	//----------Create SP500 Table----------
 	/*
+	int count = 0;
+
+	Json::Value json_SPY_All_holdings;
+
+	ifstream  fin("SPY_All_Holdings.txt");
+
+	string keys[] = { "Symbol", "Name", "Weight", "Sector", "Shares" };
+
+	string line;
+
+	while (getline(fin, line, '\r'))
+
+	{
+
+		const char *begin = line.c_str();
+
+		int index = 0;
+
+		while (const char *end = strchr(begin, ','))
+
+		{
+
+			string column(begin, end - begin);
+
+			begin = end + 1;
+
+			json_SPY_All_holdings[count][keys[index++]] = column;
+
+		}
+
+		string column(begin);
+
+		json_SPY_All_holdings[count++][keys[index]] = column;
+
+	}
+	//cout << json_SPY_All_holdings << endl;
+	std::string spy_drop_table = "DROP TABLE IF EXISTS SPY;";
+	if (DropTable(spy_drop_table.c_str(), stockDB) == -1)
+		return -1;
+
+	string spy_create_table = "CREATE TABLE SPY (id INT PRIMARY KEY NOT NULL, symbol CHAR(20) NOT NULL, name CHAR(20) NOT NULL, sector CHAR(20) NOT NULL, weight REAL NOT NULL, shares INT NOT NULL);";
+
+	if (CreateTable(spy_create_table.c_str(), stockDB) == -1)
+		return -1;
+	if (PopulateSPYTable(json_SPY_All_holdings,stockDB) == -1)
+		return -1;
+
+	//----------Create SP500 Table----------
+	
 	std::string sp500_drop_table = "DROP TABLE IF EXISTS SP500;";
 	if (DropTable(sp500_drop_table.c_str(), stockDB) == -1)
 		return -1;
@@ -53,20 +107,13 @@ int main(void)
 	if (DisplayTable(sp500_select_table.c_str(), stockDB) == -1)
 		return -1;
 	*/
-	//vector<string> Symbol_before;
-	vector<string> Symbol_after;
+	
 	vector<string> Symbol;
 	map<string, Stock> Stocks;
 
-	string sp500_select_table = "SELECT * FROM SP500;";
-	if (GetStockSymbol(sp500_select_table.c_str(), stockDB, Symbol) == -1)
+	string spy_select_table = "SELECT * FROM SP500_;";
+	if (GetStockSymbol(spy_select_table.c_str(), stockDB, Symbol) == -1)
 		return -1;
-	string new_sp500_select_table = "SELECT * FROM SP500_;";
-	if (GetStockSymbol(new_sp500_select_table.c_str(), stockDB, Symbol_after) == -1)
-		return -1;
-	vector<string> adding = Symbol_after - Symbol;
-	vector<string> deleting = Symbol - Symbol_after;
-
 
 	bool done = true;
 
@@ -78,13 +125,15 @@ int main(void)
 			<< "2: Retrieve Stock Trade Data and Save to Database " << endl
 			<< "3: Retrieve Stock Fundamental Data and Save to Database " << endl
 			<< "4: Retrieve Risk Free Rate Data and Save to Database " << endl
-			<< "5: Construct Stock Objects " << endl
-			<< "6: Exit " << endl << endl;
+			<< "5: Construct All Stock Objects " << endl
+			<< "6: Create First Generation and Populate 1000 Generations" << endl
+			<< "7: Start Testing " << endl
+			<< "8: Exit " << endl << endl;
 		cin >> input;
 		int option = stoi(input);
 		if (option == 1)
 		{
-			string sp500_select_table = "SELECT * FROM SP500;";
+			string sp500_select_table = "SELECT * FROM SP500_;";
 			if (GetStockSymbol(sp500_select_table.c_str(), stockDB, Symbol) == -1)
 				return -1;
 			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
@@ -185,23 +234,14 @@ int main(void)
 					return -1;
 				count++;
 			}
-			for (vector<string>::iterator it = adding.begin(); it != adding.end(); it++)
-			{
-				string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
-				Json::Value stockfundamental_root;
-				if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
-					return -1;
-				if (PopulateFundamentalTable(stockfundamental_root, count, *it, stockDB) == -1)
-					return -1;
-				count++;
-			}
+			
 		}
 		else if (option == 4)
 		{
 			std::string riskfreereturn_drop_table = "DROP TABLE IF EXISTS RiskFreeReturn;";
 			if (DropTable(riskfreereturn_drop_table.c_str(), stockDB) == -1)
 				return -1;
-			string riskfreereturn_create_table = "CREATE TABLE RiskFreeReturn (id INT PRIMARY KEY NOT NULL, date CHAR(20) NOT NULL, adjusted_close REAL NOT NULL, risk_free_return REAL NOT NULL);";
+			string riskfreereturn_create_table = "CREATE TABLE RiskFreeReturn (id INT PRIMARY KEY NOT NULL, date CHAR(20) NOT NULL, adjusted_close REAL NOT NULL);";
 			if (CreateTable(riskfreereturn_create_table.c_str(), stockDB) == -1)
 				return -1;
 
@@ -216,13 +256,17 @@ int main(void)
 		{
 			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
 			{
-				Stocks[*it] = Stock(*it);
+				Stocks.insert({ *it,Stock(*it) });
 			}
 
 			string fundamental_select_table = "SELECT * FROM Fundamental;";
+			string riskfreereturn_select_table = "SELECT * FROM RiskFreeReturn;";
+			string weight_select_table = "SELECT * FROM SPY;";
 			for (map<string, Stock>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 			{
 				if (GetFundamental(fundamental_select_table.c_str(), stockDB, it->second) == -1)
+					return -1;
+				if (GetWeight(weight_select_table.c_str(), stockDB, it->second) == -1)
 					return -1;
 
 				string stockDB_symbol = "Stock_" + it->first;
@@ -233,15 +277,70 @@ int main(void)
 				string trade_select_table = "SELECT * FROM " + stockDB_symbol + ";";
 				if (GetTrade(trade_select_table.c_str(), stockDB, it->second) == -1)
 					return -1;
-				it->second.addDailyReturns();
+				
+				(it->second).addDailyReturns();
+
+				if (GetRiskfreerates(riskfreereturn_select_table.c_str(), stockDB, it->second) == -1)
+					return -1;
+				cout << "Constructed the Stock " << it->first << endl;
 			}
 		}
 		else if (option == 6)
 		{
+			Population population = GetFirstGeneration(Symbol, Stocks);
+			int portfolio_number = 1;
+			ofstream myfile;
+			myfile.open("portfolios.txt");
+			for (Population::iterator it = population.begin(); it != population.end(); it++)
+			{
+				cout << "Portfolio " << portfolio_number << ": " << it->fitness << endl;
+				myfile << it->sharperatio << ", " << 1 / (it->diverindex) << endl;
+				portfolio_number += 1;
+			}
+			cout << "Created the First Generation" << endl << endl;
+			myfile.close();
+			//sort population by fitness score with descending order
+			sort ( population.begin(), population.end(), greater<Portfolio>());
+
+			int generation_number = 1;
+			vector<pair<Portfolio, Portfolio>> portfolio_pool;
+			cout << "Strat Populating 1000 Generations" << endl;
+			while (generation_number <MAX_ALLOWABLE_GENERATIONS)
+			{
+				Population temp;
+				//keep the top 2 portfolios
+				temp.push_back(*population.begin());
+				temp.push_back(*(population.begin() + 1));
+				portfolio_pool = Selection(population);
+				for (vector<pair<Portfolio, Portfolio>>::iterator it = portfolio_pool.begin(); it != portfolio_pool.end(); it++)
+				{
+					Portfolio p1 = it->first;
+					Portfolio p2 = it->second;
+					//crossover two portfolios
+					Crossover(p1, p2, Stocks);
+					temp.push_back(p1);
+					temp.push_back(p2);
+				} 
+				//mutate the population
+				Mutate(temp, Symbol, Stocks);
+				//sort the population
+				sort(temp.begin(), temp.end(), greater<Portfolio>());
+
+				population = temp;
+				generation_number++;
+			}
+			cout << "The Best Portfolio is " << endl;
+			cout << *population.begin() << endl;
+        }
+		else if (option == 7)
+		{
+			
+		}
+		else if (option == 8)
+		{
 			done = false;
 		}
 	}
-
 
 	//----------Create New SP500 Table----------
 	/*

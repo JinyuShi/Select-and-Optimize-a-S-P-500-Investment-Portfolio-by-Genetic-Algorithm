@@ -1,69 +1,220 @@
 #pragma once
 #ifndef GALogic_h
 #define GALogic_h
-//-----------------------------------------------------------------------------------------------
-//
-//  Code to illustrate the use of a genetic algorithm by Mat Buckland aka fup
-//
-//-----------------------------------------------------------------------------------------------
+
 #include <string>
 #include <stdlib.h>
 #include <iostream>
 #include <time.h>
 #include <math.h>
+#include <string>
 #include <vector>
+#include <map>
 #include <algorithm>
+
+#include "MarketDataLogic.h"
 #include "Portfolio.h"
+#include "Utility.h"
+
+typedef vector<Portfolio> Population;
 
 using namespace std;
 
-#define CROSSOVER_RATE            0.7
-#define MUTATION_RATE             0.001
-#define POP_SIZE                  100           //must be an even number
-#define CHROMO_LENGTH             300
-#define GENE_LENGTH               4
-#define MAX_ALLOWABLE_GENERATIONS   400
+#define MUTATION_RATE             0.03
+#define POP_SIZE                  100
+#define STOCK_NUMBER              10
 
-//returns a float between 0 & 1
-#define RANDOM_NUM      ((float)rand()/RAND_MAX)
+#define MAX_ALLOWABLE_GENERATIONS   1000
 
-//----------------------------------------------------------------------------------------
-//
-//  define a data structure which will define a chromosome
-//
-//----------------------------------------------------------------------------------------
-struct chromo_typ
-{
-	//the binary bit string is held in a std::string
-	string    bits;
-
-	float     fitness;
-
-	chromo_typ() : bits(""), fitness(0.0f) {};
-	chromo_typ(string bts, float ftns) : bits(bts), fitness(ftns) {};
-	bool operator<(const chromo_typ& b) const { return fitness < b.fitness; };
-};
-
+//returns a integer from 0 to 504
+#define RANDOM_INT      ((int)rand()%505)
+//return a float from 0 to 1
+#define RANDOM_FLOAT    ((float)rand()/RAND_MAX)
+//return a integer from 0 to 9
+#define RANDOM_NUM      ((int)rand()%10)
 
 /////////////////////////////////prototypes/////////////////////////////////////////////////////
 
-void    PrintGeneSymbol(int val);
-string  GetRandomBits(int length);
-int     BinToDec(string bits);
-float   AssignFitness(string bits, int target_value);
-void    PrintChromo(string bits);
-void    PrintGeneSymbol(int val);
-int     ParseBits(string bits, int* buffer);
-string  Roulette(int total_fitness, vector<chromo_typ> Population);
-void    Mutate(string &bits);
-void    Crossover(string &offspring1, string &offspring2);
+vector<string> GetRandomSymbols(const vector<string>&symbol_);
+Portfolio GetPortfolio(vector<string>&symbol_, const map<string, Stock>&stocks_);
+Population GetFirstGeneration(const vector<string>&symbol_, const map<string, Stock>&stocks_);
+void Mutate(Population& population, const vector<string>&symbol_, const map<string, Stock>&stocks_);
+void Crossover(Portfolio&portfolio1, Portfolio&portfolio2, const map<string, Stock>&stocks_);
+vector<pair<Portfolio, Portfolio>> Selection(Population&population);
 
 
+//---------------------------------GetRandomSymbols-----------------------------------------
+//
+//  This function returns a list of 10 random stock symbols from given symbol vector
+//
+//-----------------------------------------------------------------------------------------
+vector<string> GetRandomSymbols(const vector<string>&symbol_)
+{
+	vector<string>randomsymbols;
+	string symbol;
+	int count = 0;
+	while (count < STOCK_NUMBER)
+	{
+		int temp = RANDOM_INT;
+		symbol = *(symbol_.begin() + temp);
+		if (find(randomsymbols.begin(), randomsymbols.end(), symbol) == randomsymbols.end())
+		{
+			randomsymbols.push_back(symbol);
+			count += 1;
+		}
+	}
+	return randomsymbols;
+}
 
+//--------------------------------- GetPortfolio -----------------------------------------
+//
+//  This function returns a portfolio
+//
+//-----------------------------------------------------------------------------------------
+Portfolio GetPortfolio(vector<string>&symbol,const map<string, Stock>&stocks_)
+{
+	map<Stock,float>stocks;
+	for (vector<string>::iterator it = symbol.begin(); it != symbol.end(); it++)
+	{
+		if (stocks_.find(*it)!=stocks_.end())
+			stocks.insert({ stocks_.find(*it)->second,stocks_.find(*it)->second.weight });
+	}
+	Portfolio portfolio(symbol,stocks);
+	portfolio.SetDailyReturn();
+	portfolio.SetSharpeRatio();
+	portfolio.SetDiverIndex();
+	//portfolio.AssignFitness();
+	return portfolio;
+}
+
+//---------------------------------GetFirstGeneration-----------------------------------------
+//
+//  This function returns the first portfolio generation
+//
+//-----------------------------------------------------------------------------------------
+Population GetFirstGeneration(const vector<string>&symbol_, const map<string, Stock>&stocks_)
+{
+	Population first_generation;
+	vector<string>symbol;
+	for (int i = 0; i < POP_SIZE; i++)
+	{
+		symbol = GetRandomSymbols(symbol_);
+		Portfolio portfolio = GetPortfolio(symbol, stocks_);
+		first_generation.push_back(portfolio);
+	}
+	return first_generation;
+}
+
+//------------------------------------ Mutate ---------------------------------------
+//
+//  Mutates a population dependent on the  portfolio MUTATION_RATE
+//
+//-------------------------------------------------------------------------------------
+void Mutate(Population& population, const vector<string>&symbol_, const map<string,Stock>&stocks_)
+{
+	for (auto it = population.begin(); it != population.end(); it++)
+	{
+		if (RANDOM_FLOAT < MUTATION_RATE)
+		{
+			vector<string> new_symbol = it->GetSymbols();
+			string to_add = " ";
+			while (to_add == " ")
+			{
+				int temp = RANDOM_INT;
+				string symbol = *(symbol_.begin() + temp);
+				if (find(new_symbol.begin(), new_symbol.end(), symbol) == new_symbol.end())
+					to_add = symbol;
+			}
+			new_symbol.at(RANDOM_NUM) = to_add;
+			(*it) = GetPortfolio(new_symbol, stocks_);
+		}
+	}
+	return;
+}
+
+//---------------------------------- Crossover ---------------------------------------
+//
+//  Updatng two new portfolios with mixing and unique stocks(no several same stocks in one portfolio)
+//
+//------------------------------------------------------------------------------------
+void Crossover(Portfolio&portfolio1, Portfolio&portfolio2, const map<string, Stock>&stocks_)
+{
+	vector<string>symbol1 = portfolio1.GetSymbols();
+	vector<string>symbol2 = portfolio2.GetSymbols();
+
+	//find stocks in both portfolio1 and portfolio2, keep them in original portfolio without crossover to prevent several same stocks in one portfolio
+	vector<string>in1only = symbol1 - symbol2;
+	vector<string>in2only = symbol2 - symbol1;
+	vector<string>intersection = symbol1 - in1only;
+	//the stock symbols which will crossover
+	vector<string>pool = in1only + in2only;
+
+	vector<string>newsymbol1, newsymbol2;
+	string symbol;
+	int count = 0;
+	//randomly select stock symbols such that plus intersection part there will be 10 stock symbols
+	while (count < STOCK_NUMBER - intersection.size())
+	{
+		symbol = *(pool.begin() + (int)(rand() % pool.size()));
+		if (find(newsymbol1.begin(), newsymbol1.end(), symbol) == newsymbol1.end())
+		{
+			newsymbol1.push_back(symbol);
+			count++;
+		}
+	}
+	//finally settled stock symbols for two portfolios
+	newsymbol2 = pool - newsymbol1 + intersection;
+	newsymbol1 = newsymbol1 + intersection;
+	//update two portfolio
+	portfolio1 = GetPortfolio(newsymbol1, stocks_);
+	portfolio2 = GetPortfolio(newsymbol2, stocks_);
+}
+
+//---------------------------------- Selection ---------------------------------------
+//
+//  Selecting paris of portfolios to crossover
+//
+//------------------------------------------------------------------------------------
+vector<pair<Portfolio, Portfolio>> Selection(Population&population)
+{
+	vector<pair<Portfolio, Portfolio>> portfolio_pairs;
+	vector<int> numbers;
+	//vector of number of portfolios which could have children
+	for (int i = 1; i < 70; i++)
+	{
+		//top 29 portfolios could have crossover two times
+		if (i < 30)
+		{
+			numbers.push_back(i);
+			numbers.push_back(i);
+		}
+		//portfolios from order 30 to 69 coulde have crossover one time
+		else
+		{
+			numbers.push_back(i);
+		}
+	}
+	//generate pairs
+	while (numbers.size() != 2)
+	{
+		int number1 = *(numbers.begin() + (int)rand % numbers.size());
+		int number2 = *(numbers.begin() + (int)rand % numbers.size());
+		if (number1 != number2)
+		{
+			portfolio_pairs.push_back(make_pair(*(population.begin() + number1 - 1), *(population.begin() + number2 - 1)));
+			numbers.erase(find(numbers.begin(), numbers.end(), number1));
+			numbers.erase(find(numbers.begin(), numbers.end(), number2));
+		}
+	}
+	//add the remaining two portfolios
+	portfolio_pairs.push_back(make_pair(*(population.begin() + *numbers.begin()), *(population.begin() + *(numbers.begin() + 1))));
+	return portfolio_pairs;
+}
+
+/*
 //-------------------------------main--------------------------------------------------
 //
 //-------------------------------------------------------------------------------------
-/*
 int main()
 {
 	//seed the random number generator
@@ -190,322 +341,4 @@ int main()
 	return 0;
 }
 */
-
-
-
-//---------------------------------GetRandomBits-----------------------------------------
-//
-//  This function returns a string of random 1s and 0s of the desired length.
-//
-//-----------------------------------------------------------------------------------------
-string  GetRandomBits(int length)
-{
-	string bits;
-
-	for (int i = 0; i < length; i++)
-	{
-		if (RANDOM_NUM > 0.5f)
-
-			bits += "1";
-
-		else
-
-			bits += "0";
-	}
-
-	return bits;
-}
-
-//---------------------------------BinToDec-----------------------------------------
-//
-//  converts a binary string into a decimal integer
-//
-//-----------------------------------------------------------------------------------
-int BinToDec(string bits)
-{
-	int val = 0;
-	int value_to_add = 1;
-
-	for (unsigned long i = bits.length(); i > 0; i--)
-	{
-
-
-		if (bits.at(i - 1) == '1')
-
-			val += value_to_add;
-
-		value_to_add *= 2;
-
-	}//next bit
-
-	return val;
-}
-
-
-//---------------------------------ParseBits------------------------------------------
-//
-// Given a chromosome this function will step through the genes one at a time and insert 
-// the decimal values of each gene (which follow the operator -> number -> operator rule)
-// into a buffer. Returns the number of elements in the buffer.
-//------------------------------------------------------------------------------------
-int ParseBits(string bits, int* buffer)
-{
-
-	//counter for buffer position
-	int cBuff = 0;
-
-	// step through bits a gene at a time until end and store decimal values
-	// of valid operators and numbers. Don't forget we are looking for operator - 
-	// number - operator - number and so on... We ignore the unused genes 1111
-	// and 1110
-
-	//flag to determine if we are looking for an operator or a number
-	bool bOperator = true;
-
-	//storage for decimal value of currently tested gene
-	int this_gene = 0;
-
-	for (int i = 0; i < bits.length(); i += GENE_LENGTH)
-	{
-		//convert the current gene to decimal
-		this_gene = BinToDec(bits.substr(i, GENE_LENGTH));
-
-		//find a gene which represents an operator
-		if (bOperator)
-		{
-			if ((this_gene < 10) || (this_gene > 13))
-
-				continue;
-
-			else
-			{
-				bOperator = false;
-				buffer[cBuff++] = this_gene;
-				continue;
-			}
-		}
-
-		//find a gene which represents a number
-		else
-		{
-			if (this_gene > 9)
-
-				continue;
-
-			else
-			{
-				bOperator = true;
-				buffer[cBuff++] = this_gene;
-				continue;
-			}
-		}
-
-	}//next gene
-
-	 //  now we have to run through buffer to see if a possible divide by zero
-	 //  is included and delete it. (ie a '/' followed by a '0'). We take an easy
-	 //  way out here and just change the '/' to a '+'. This will not effect the 
-	 //  evolution of the solution
-	for (int i = 0; i < cBuff; i++)
-	{
-		if ((buffer[i] == 13) && (buffer[i + 1] == 0))
-
-			buffer[i] = 10;
-	}
-
-	return cBuff;
-}
-
-//---------------------------------AssignFitness--------------------------------------
-//
-//  given a string of bits and a target value this function will calculate its  
-//  representation and return a fitness score accordingly
-//------------------------------------------------------------------------------------
-float AssignFitness(string bits, int target_value)
-{
-
-	//holds decimal values of gene sequence
-	int buffer[(int)(CHROMO_LENGTH / GENE_LENGTH)];
-
-	int num_elements = ParseBits(bits, buffer);
-
-	// ok, we have a buffer filled with valid values of: operator - number - operator - number..
-	// now we calculate what this represents.
-	float result = 0.0f;
-
-	for (int i = 0; i < num_elements - 1; i += 2)
-	{
-		switch (buffer[i])
-		{
-		case 10:
-
-			result += buffer[i + 1];
-			break;
-
-		case 11:
-
-			result -= buffer[i + 1];
-			break;
-
-		case 12:
-
-			result *= buffer[i + 1];
-			break;
-
-		case 13:
-
-			result /= buffer[i + 1];
-			break;
-
-		}//end switch
-
-	}
-
-	// Now we calculate the fitness. First check to see if a solution has been found
-	// and assign an arbitarily high fitness score if this is so.
-
-	if (result == (float)target_value)
-	{
-		cout << "Result = " << result;
-		return 999.0f;
-	}
-	else
-
-		return 1 / (float)fabs((double)(target_value - result));
-	//  return result;
-}
-
-//---------------------------------PrintChromo---------------------------------------
-//
-// decodes and prints a chromo to screen
-//-----------------------------------------------------------------------------------
-void PrintChromo(string bits)
-{
-	//holds decimal values of gene sequence
-	int buffer[(int)(CHROMO_LENGTH / GENE_LENGTH)];
-
-	//parse the bit string
-	int num_elements = ParseBits(bits, buffer);
-
-	for (int i = 0; i < num_elements; i++)
-	{
-		PrintGeneSymbol(buffer[i]);
-	}
-
-	return;
-}
-
-//--------------------------------------PrintGeneSymbol-----------------------------
-//  
-//  given an integer this function outputs its symbol to the screen 
-//----------------------------------------------------------------------------------
-void PrintGeneSymbol(int val)
-{
-	if (val < 10)
-
-		cout << val << " ";
-
-	else
-	{
-		switch (val)
-		{
-
-		case 10:
-
-			cout << "+";
-			break;
-
-		case 11:
-
-			cout << "-";
-			break;
-
-		case 12:
-
-			cout << "*";
-			break;
-
-		case 13:
-
-			cout << "/";
-			break;
-
-		}//end switch
-
-		cout << " ";
-	}
-
-	return;
-}
-
-//------------------------------------Mutate---------------------------------------
-//
-//  Mutates a chromosome's bits dependent on the MUTATION_RATE
-//-------------------------------------------------------------------------------------
-void Mutate(string &bits)
-{
-	for (unsigned int i = 0; i < bits.length(); i++)
-	{
-		if (RANDOM_NUM < MUTATION_RATE)
-		{
-			if (bits.at(i) == '1')
-
-				bits.at(i) = '0';
-
-			else
-
-				bits.at(i) = '1';
-		}
-	}
-
-	return;
-}
-
-//---------------------------------- Crossover ---------------------------------------
-//
-//  Dependent on the CROSSOVER_RATE this function selects a random point along the 
-//  lenghth of the chromosomes and swaps all the  bits after that point.
-//------------------------------------------------------------------------------------
-void Crossover(string &offspring1, string &offspring2)
-{
-	//dependent on the crossover rate
-	if (RANDOM_NUM < CROSSOVER_RATE)
-	{
-		//create a random crossover point
-		int crossover = (int)(RANDOM_NUM);
-		int crossover1 = crossover * offspring1.length();
-		int crossover2 = crossover * offspring2.length();
-		string t1 = offspring1.substr(0, crossover1) + offspring2.substr(crossover1, CHROMO_LENGTH);
-		string t2 = offspring2.substr(0, crossover2) + offspring1.substr(crossover2, CHROMO_LENGTH);
-
-		offspring1 = t1; offspring2 = t2;
-	}
-}
-
-
-//--------------------------------Roulette-------------------------------------------
-//
-//  selects a chromosome from the population via roulette wheel selection
-//------------------------------------------------------------------------------------
-string Roulette(int total_fitness, vector<chromo_typ> Population)
-{
-	//generate a random number between 0 & total fitness count
-	float Slice = (float)(RANDOM_NUM * total_fitness);
-
-	//go through the chromosones adding up the fitness so far
-	float FitnessSoFar = 0.0f;
-
-	for (std::vector<chromo_typ>::iterator i = Population.begin(); i != Population.end(); i++)
-	{
-		FitnessSoFar += i->fitness;
-
-		//if the fitness so far > random number return the chromo at this point
-		if (FitnessSoFar >= Slice)
-
-			return i->bits;
-	}
-
-	return "";
-}
-
 #endif

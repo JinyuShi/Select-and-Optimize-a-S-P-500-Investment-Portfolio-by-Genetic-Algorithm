@@ -3,8 +3,11 @@
 #define MarketDataLogic_h
 
 #include <iostream>
+#include <fstream>
+#include <string>
 #include <vector>
 #include <map>
+#include "Utility.h"
 
 #define NUM_OF_STOCKS 505
 
@@ -50,10 +53,7 @@ public:
 		peratio(peratio_), divyield(divyield_), beta(beta_), high52(high52_), low52(low52_), ma50(ma50_), ma200(ma200_)
 	{}
 	~Fundamental() {}
-	float getBeta()
-	{
-		return beta;
-	}
+	float getBeta() { return beta; }
 	friend ostream & operator << (ostream & out, const Fundamental & f)
 	{
 		out << "P/E ratio: " << f.peratio << " Dividend Yield: " << f.divyield << " Beta: " << f.beta << " High 52Weeks: " << f.high52 << " Low 52Weeks: " << f.low52 << " MA 50Days: " << f.ma50 << " MA 200Days: " << f.ma200 << endl;
@@ -66,105 +66,59 @@ class Stock
 private:
 	string symbol;
 	vector<Trade> trades;
-	map<string, float> dailyreturns;
-	map<string, float> riskfreerates;
+	maps dailyreturns;
+	maps riskfreerates;
 	Fundamental fundamental;
 
 public:
-	Stock(string symbol_) :symbol(symbol_)
-	{}
+	float weight = 0;
+	Stock(string symbol_) :symbol(symbol_) {}
 	Stock() {}
 	~Stock() {}
-	void addTrade(Trade aTrade)
-	{
-		trades.push_back(aTrade);
-	}
+	void addWeight(float weight_) { weight = weight_; }
+	void addTrade(Trade aTrade) { trades.push_back(aTrade); }
 	void addDailyReturns()
 	{
 		for (vector<Trade>::iterator itr = trades.begin(); itr != trades.end(); itr++)
 		{
 			if (itr == trades.begin())
 			{
-				dailyreturns[itr->getDate()] = 0.0;
+				dailyreturns.insert({ itr->getDate(),0.0 });
 			}
 			else
 			{
 				string date_ = itr->getDate();
-				float return_ = ((*itr).getAdjClose() - (*(itr - 1)).getAdjClose()) / ((*(itr - 1)).getAdjClose());
-				dailyreturns[date_] = return_;
+				float return_ = ((itr->getAdjClose() / (itr - 1)->getAdjClose()) - 1)*100;
+				dailyreturns.insert({ date_, return_ });
 			}
 		}
 	}
-	void addRiskFreeRates(string date_, float riskfreerate_)
-	{
-		riskfreerates[date_] = riskfreerate_;
-	}
-	void addFundamental(Fundamental fundamental_)
-	{
-		fundamental = fundamental_;
-	}
-	map<string, float> getdailyreturn()
-	{
-		return dailyreturns;
-	}
-	map<string, float>getriskfreerates()
-	{
-		return riskfreerates;
-	}
-	string getsymbol()
-	{
-		return symbol;
-	}
-	float getbeta()
-	{
-		return fundamental.getBeta();
-	}
-	float CalRiskfreereturn()
-	{
-		float mean_riskfreereturn = 0;
-		int count = 0;
-		for (map<string, float>::iterator it = riskfreerates.begin(); it != riskfreerates.end(); it++)
-		{
-			mean_riskfreereturn += it->second;
-			count++;
-		}
-		mean_riskfreereturn /= count;
-		return mean_riskfreereturn;
-	}
-	float CalRet()
-	{
-		float mean_return = 0;
-		int count = 0;
-		for (map<string, float>::iterator it = dailyreturns.begin(); it != dailyreturns.end(); it++)
-		{
-			mean_return += it->second;
-			count++;
-		}
-		mean_return /= count;
-		return mean_return;
-	}
-	float CalStd()
-	{
-		float mean_return = CalRet();
-		float std = 0;
-		int count = 0;
-		for (map<string, float>::iterator it = dailyreturns.begin(); it != dailyreturns.end(); it++)
-		{
-			std += pow(it->second - mean_return, 2);
-			count++;
-		}
-		std /= count;
-		return sqrt(std);
-	}
+	void addRiskFreeRates(string date_, float riskfreerate_) { riskfreerates.insert({ date_,riskfreerate_ }); }
+	void addFundamental(Fundamental fundamental_) { fundamental = fundamental_; }
+	maps getdailyreturn() { return dailyreturns; }
+	maps getriskfreerates() { return riskfreerates; }
+	string getsymbol() { return symbol; }
+	float getbeta() { return fundamental.getBeta(); }
+	float CalMeanRiskfreereturn() { return mean(riskfreerates); }
+	float CalRet() { return mean(dailyreturns); }
+	float CalStd() { return sd(dailyreturns); }
 	friend ostream & operator << (ostream & out, const Stock & s)
 	{
 		out << "Symbol: " << s.symbol << endl;
 		out << s.fundamental << endl;
-		for (vector<Trade>::const_iterator itr = s.trades.begin(); itr != s.trades.end(); itr++)
+		for (std::vector<Trade>::const_iterator itr = s.trades.begin(); itr != s.trades.end(); itr++)
+		{
 			out << *itr << endl;
-		for (map<string, float>::const_iterator itr = s.dailyreturns.begin(); itr != s.dailyreturns.end(); itr++)
-			out << itr->first << " : " << itr->second << endl;
+		}
+		for (maps::const_iterator it = s.dailyreturns.begin(); it != s.dailyreturns.end(); it++)
+		{
+			out << "date: " << it->first << ", daily return: " << it->second << ", risk free rate: "<<s.riskfreerates.find(it->first)->second<< endl;
+		}
 		return out;
+	}
+	bool operator<(const Stock&stock1) const
+	{
+		return (this->symbol < stock1.symbol);
 	}
 };
 

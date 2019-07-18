@@ -1,4 +1,3 @@
-/*
 #pragma once
 #ifndef Portfolio_h
 #define Portfolio_h
@@ -10,6 +9,7 @@
 
 #include "MarketDataLogic.h"
 #include "DatabaseLogic.h"
+#include "Utility.h"
 
 using namespace std;
 
@@ -17,95 +17,89 @@ class Portfolio
 {
 private:
 	vector<string> Symbols;
-	map<Stock, float> Stocks;
-	map<string, float> DailyReturn;
-	float sharperatio, beta, mean_return, risk, fitness;
+	map<Stock,float> Stocks;
 public:
-	Portfolio(map<Stock, float>stocks_) : Stocks(stocks_) {}
+	maps DailyReturn;
+	float sharperatio, diverindex, fitness;
+	
+	Portfolio(vector<string>symbols_,map<Stock,float>stocks_) : Symbols(symbols_),Stocks(stocks_) {}
 	~Portfolio() {}
-	map<string, float> getdailyreturn()
+	vector<string> GetSymbols() { return Symbols; }
+	void SetDailyReturn()
 	{
-		map<string, float>portfolio_dailyreturn;
-		float dailyreturn;
-		string date;
-		for (map<string, float>::iterator it = (Stocks.begin()->first).getdailyreturn().begin(); it != (Stocks.begin()->first).getdailyreturn().end(); it++)
+		vector<maps> dailyreturns;
+		for (map<Stock, float>::const_iterator it = Stocks.begin(); it != Stocks.end(); it++)
 		{
-			date = it->first;
-			dailyreturn = 0;
-			for (map<Stock, float>::iterator inner = Stocks.begin(); inner != Stocks.end(); inner++)
-			{
-				dailyreturn += ((inner->first).getdailyreturn)[date] * (inner->second);
-			}
-			portfolio_dailyreturn[date] = dailyreturn;
+			Stock temp = it->first;
+			dailyreturns.push_back((temp.getdailyreturn())*(it->second));
 		}
-		return portfolio_dailyreturn;
+		DailyReturn = sum(dailyreturns);
 	}
-	float CalReturn()
-	{
-		float portfolio_return = 0;
-		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
-		{
-			float stock_return = (it->first).CalRet();
-			portfolio_return += stock_return * (it->second);
-		}
-		return portfolio_return;
-	}
-	float CalRisk()
-	{
-		float portfolio_risk = 0, result;
-		float mean = CalReturn();
-		map<string, float> portfolio_dailyreturn = getdailyreturn();
-		for (map<string, float>::iterator it = portfolio_dailyreturn.begin(); it != portfolio_dailyreturn.end(); it++)
-		{
-			float stock_return = it->second;
-			portfolio_risk += pow(stock_return - mean, 2)*(it->second);
-		}
-		result = sqrt(portfolio_risk);
-		return result;
-	}
+	float CalReturn() { return mean(DailyReturn); }
+	float CalRisk() { return sd(DailyReturn); }
 	float CalBeta()
 	{
 		float portfolio_beta = 0;
-		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		for (map<Stock,float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 		{
-			portfolio_beta += ((it->first).getbeta)*(it->second);
+			Stock stock = it->first;
+			portfolio_beta += (stock.getbeta())*(it->second);
 		}
 		return portfolio_beta;
 	}
 	float CalSharpeRatio()
 	{
-		return (CalReturn() - (Stocks.begin()->first).CalRiskfreereturn) / CalRisk();
+		vector<maps>riskfreerates;
+		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		{
+			Stock temp = Stocks.begin()->first;
+			riskfreerates.push_back(temp.getriskfreerates());
+		}
+		return (CalReturn() - mean(largestmaps(riskfreerates))) / CalRisk();
 	}
 	float CalTreynor()
 	{
-		return  (CalReturn() - (Stocks.begin()->first).CalRiskfreereturn) / CalBeta();
+		vector<maps>riskfreerates;
+		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		{
+			Stock temp = Stocks.begin()->first;
+			riskfreerates.push_back(temp.getriskfreerates());
+		}
+		return  (CalReturn() - mean(largestmaps(riskfreerates))) / CalBeta();
 	}
 	float CalDiverIndex()
 	{
 		//pi for stock i = (weight*sigma)^2/sum of (weight*sigma)^2
 		//H = sum of pi^2
 		float total_weight = 0, p = 0, H = 0;
-		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		for (map<Stock,float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 		{
-			p = pow(it->second, 2)*pow((it->first).CalStd, 2);
+			Stock stock = it->first;
+			p = pow(it->second, 2)*pow(stock.CalStd(), 2);
 			total_weight += p;
 			H += pow(p, 2);
 		}
 		H /= pow(total_weight, 2);
 		return H;
 	}
-	void addfitness()
+	void SetSharpeRatio() { sharperatio = CalSharpeRatio(); }
+	void SetDiverIndex() { diverindex = CalDiverIndex(); }
+	void AssignFitness()
 	{
-		float fitness_ = 0;
-		float a, b, c;
-		fitness += a * CalSharpeRatio() + b / CalDiverIndex() + c;
-		fitness = fitness_;
+		float a = 0, b = 0, c = 0;
+		fitness = a * sharperatio + b / diverindex + c;
 	}
-	float getfitness()
+	friend ostream & operator << (ostream & out, const Portfolio & p)
 	{
-		return fitness;
+		for (vector<string>::const_iterator it = p.Symbols.begin(); it != p.Symbols.end(); it++)
+		{
+			out << *it << " ";
+		}
+		out << endl;
+		out << "Sharpe Ratio = " << p.sharperatio << ", Diver Index = " << p.diverindex << endl;
+		return out;
 	}
-
+	bool operator>(const Portfolio&p) const { return fitness > p.fitness; }
 };
+
 #endif
-*/

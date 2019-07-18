@@ -267,6 +267,86 @@ int GetTrade(const char *sql_select, sqlite3 *db, Stock& stock_)
 	sqlite3_free_table(results);
 	return 0;
 }
+
+int GetRiskfreerates(const char *sql_select, sqlite3 *db, Stock& stock_)
+{
+	int rc = 0;
+	char *error = NULL;
+
+	char **results = NULL;
+	int rows, columns;
+	// A result table is memory data structure created by the sqlite3_get_table() interface.
+	// A result table records the complete query results from one or more queries.
+	sqlite3_get_table(db, sql_select, &results, &rows, &columns, &error);
+	if (rc)
+	{
+		cerr << "Error executing SQLite3 query: " << sqlite3_errmsg(db) << endl << endl;
+		sqlite3_free(error);
+		system("pause");
+		return -1;
+	}
+
+	// Retrieve Table
+	// Skip the Header
+	float risk_free_return;
+	map<string, float> dailyreturn = stock_.getdailyreturn();
+	for (map<string, float>::iterator it = dailyreturn.begin(); it != dailyreturn.end(); it++)
+	{
+		for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
+		{
+			// id date adjusted_close risk_free_return
+			int DatePosition = (rowCtr * columns) + 1;
+			string date = results[DatePosition];
+			if (date == it->first)
+			{
+				risk_free_return = stof(results[DatePosition + 1]);
+				stock_.addRiskFreeRates(date, risk_free_return);
+			}
+		}
+	}
+	// This function properly releases the value array returned by sqlite3_get_table()
+	sqlite3_free_table(results);
+	return 0;
+}
+
+int GetWeight(const char *sql_select, sqlite3 *db, Stock& stock_)
+{
+	int rc = 0;
+	char *error = NULL;
+
+	char **results = NULL;
+	int rows, columns;
+	float weight;
+	// A result table is memory data structure created by the sqlite3_get_table() interface.
+	// A result table records the complete query results from one or more queries.
+	sqlite3_get_table(db, sql_select, &results, &rows, &columns, &error);
+	if (rc)
+	{
+		cerr << "Error executing SQLite3 query: " << sqlite3_errmsg(db) << endl << endl;
+		sqlite3_free(error);
+		system("pause");
+		return -1;
+	}
+
+	// Retrieve Table
+	// Skip the Header
+	for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
+	{
+		// id symbol name sector weight shares
+		int SymbolPosition = (rowCtr * columns) + 1;
+		string symbol = results[SymbolPosition];
+		if (symbol == stock_.getsymbol())
+		{
+			weight = stof(results[SymbolPosition + 3]);
+		}
+
+	}
+	stock_.addWeight(weight);
+	// This function properly releases the value array returned by sqlite3_get_table()
+	sqlite3_free_table(results);
+	return 0;
+}
+
 //writing call back function for storing fetched values in memory
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {
@@ -614,9 +694,9 @@ int PopulateFundamentalTable(const Json::Value & root, int &count, string symbol
 int PopulateRiskFreeReturnTable(const Json::Value & root, sqlite3 *db)
 {
 	string date;
-	float adjusted_close, risk_free_return;
+	float adjusted_close;
 	float close_prices[3000] = {};
-	int count = 0;
+	int count = 1;
 	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
 	{
 		//cout << *itr << endl;
@@ -627,30 +707,16 @@ int PopulateRiskFreeReturnTable(const Json::Value & root, sqlite3 *db)
 				if (inner.key() == "date")
 					date = inner->asString();
 				else if (inner.key().asString() == "adjusted_close")
-					adjusted_close = (float)(inner->asDouble());
+					adjusted_close = (float)(inner->asDouble()) / 252;
 			}
 		}
 
-		if (date != "2010-10-11" && date != "2016-11-11")
-		{
-			close_prices[count] = adjusted_close;
-			count++;
-			// Execute SQL
-			char stockDB_insert_table[512];
-			if (count < 2)
-			{
-				sprintf_s(stockDB_insert_table, "INSERT INTO RiskFreeReturn (id, date, adjusted_close, risk_free_return) VALUES(%d, \"%s\", %f, %f)", count, date.c_str(), adjusted_close, 0.0);
-				if (InsertTable(stockDB_insert_table, db) == -1)
-					return -1;
-			}
-			else
-			{
-				risk_free_return = ((close_prices[count - 1]) / (close_prices[count - 2])) - 1;
-				sprintf_s(stockDB_insert_table, "INSERT INTO RiskFreeReturn (id, date, adjusted_close, risk_free_return) VALUES(%d, \"%s\", %f, %f)", count, date.c_str(), adjusted_close, risk_free_return);
-				if (InsertTable(stockDB_insert_table, db) == -1)
-					return -1;
-			}
-		}
+		// Execute SQL
+		char stockDB_insert_table[512];
+		sprintf_s(stockDB_insert_table, "INSERT INTO RiskFreeReturn (id, date, adjusted_close) VALUES(%d, \"%s\", %f)", count, date.c_str(), adjusted_close);
+		if (InsertTable(stockDB_insert_table, db) == -1)
+			return -1;
+		count++;
 	}
 	return 0;
 }
@@ -692,4 +758,46 @@ int PopulateNewSP500Table(const Json::Value & root, sqlite3 *db)
 	return 0;
 }
 
+int PopulateSPYTable(const Json::Value & root, sqlite3 *db)
+{
+	int count = 0;
+	string name, symbol, sector;
+	float weight;
+	int shares;
+	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
+	{
+		cout << *itr << endl;
+		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
+		{
+			//cout << inner.key() << ": " << *inner << endl;
+
+			if (inner.key().asString() == "Name")
+				name = inner->asString();
+			else if (inner.key().asString() == "Sector")
+				sector = inner->asString();
+			else if (inner.key().asString() == "Symbol")
+				symbol = inner->asString();
+			else if (inner.key().asString() == "Weight")
+				weight = (float)stof(inner->asString());
+			else if (inner.key().asString() == "Shares")
+				shares = (int)atoi(inner->asCString());
+		}
+		if (symbol == "BRK.B")
+			symbol = "BRK-B";
+		else if (symbol == "BF.B")
+			symbol = "BF-B";
+
+		if (symbol != "LUK" && symbol != "MON")
+		{
+			count++;
+
+			// Execute SQL
+			char sp500_insert_table[512];
+			sprintf_s(sp500_insert_table, "INSERT INTO SPY (id, symbol, name, sector, weight, shares) VALUES(%d, \"%s\", \"%s\", \"%s\", %f, %d)", count, symbol.c_str(), name.c_str(), sector.c_str(), weight, shares);
+			if (InsertTable(sp500_insert_table, db) == -1)
+				return -1;
+		}
+	}
+	return 0;
+}
 #endif
