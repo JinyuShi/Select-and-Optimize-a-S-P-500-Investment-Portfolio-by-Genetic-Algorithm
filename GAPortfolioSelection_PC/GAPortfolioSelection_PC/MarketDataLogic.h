@@ -27,7 +27,9 @@ public:
 	Trade(string date_, float open_, float high_, float low_, float close_, float adjusted_close_, int volume_) :
 		date(date_), open(open_), high(high_), low(low_), close(close_), adjusted_close(adjusted_close_), volume(volume_)
 	{}
+	Trade() {}
 	~Trade() {}
+	float getOpen() { return open; }
 	string getDate() { return date; }
 	float getAdjClose() { return adjusted_close; }
 	friend ostream & operator << (ostream & out, const Trade & t)
@@ -54,6 +56,7 @@ public:
 	{}
 	~Fundamental() {}
 	float getBeta() { return beta; }
+	float getdivyield() { return divyield; }
 	friend ostream & operator << (ostream & out, const Fundamental & f)
 	{
 		out << "P/E ratio: " << f.peratio << " Dividend Yield: " << f.divyield << " Beta: " << f.beta << " High 52Weeks: " << f.high52 << " Low 52Weeks: " << f.low52 << " MA 50Days: " << f.ma50 << " MA 200Days: " << f.ma200 << endl;
@@ -67,11 +70,11 @@ private:
 	string symbol;
 	vector<Trade> trades;
 	maps dailyreturns;
-	maps riskfreerates;
+	maps riskfreereturn;
 	Fundamental fundamental;
 
 public:
-	float weight = 0;
+	float weight;
 	Stock(string symbol_) :symbol(symbol_) {}
 	Stock() {}
 	~Stock() {}
@@ -87,21 +90,25 @@ public:
 			}
 			else
 			{
-				string date_ = itr->getDate();
 				float return_ = ((itr->getAdjClose() / (itr - 1)->getAdjClose()) - 1)*100;
-				dailyreturns.insert({ date_, return_ });
+				dailyreturns.insert({ itr->getDate(), return_ });
 			}
 		}
+		for (maps::iterator it = riskfreereturn.begin(); it != riskfreereturn.end(); it++)
+		{
+			if (dailyreturns.find(it->first) == dailyreturns.end())
+				dailyreturns.insert({ it->first,0.0 });
+		}
 	}
-	void addRiskFreeRates(string date_, float riskfreerate_) { riskfreerates.insert({ date_,riskfreerate_ }); }
+	void addRiskFreeReturn(string date_, float return_) { riskfreereturn.insert({ date_,return_ }); }
 	void addFundamental(Fundamental fundamental_) { fundamental = fundamental_; }
+	float CalStd() { return sd(dailyreturns); }
+	vector<Trade> gettrade() { return trades; }
 	maps getdailyreturn() { return dailyreturns; }
-	maps getriskfreerates() { return riskfreerates; }
+	maps getriskfreereturn() { return riskfreereturn; }
 	string getsymbol() { return symbol; }
 	float getbeta() { return fundamental.getBeta(); }
-	float CalMeanRiskfreereturn() { return mean(riskfreerates); }
-	float CalRet() { return mean(dailyreturns); }
-	float CalStd() { return sd(dailyreturns); }
+	float getdivyield() { return fundamental.getdivyield(); }
 	friend ostream & operator << (ostream & out, const Stock & s)
 	{
 		out << "Symbol: " << s.symbol << endl;
@@ -112,7 +119,7 @@ public:
 		}
 		for (maps::const_iterator it = s.dailyreturns.begin(); it != s.dailyreturns.end(); it++)
 		{
-			out << "date: " << it->first << ", daily return: " << it->second << ", risk free rate: "<<s.riskfreerates.find(it->first)->second<< endl;
+			out << "date: " << it->first << ", daily return: " << it->second << ", risk free rate: "<<s.riskfreereturn.find(it->first)->second<< endl;
 		}
 		return out;
 	}

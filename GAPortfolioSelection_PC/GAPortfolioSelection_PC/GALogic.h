@@ -16,9 +16,11 @@
 #include "Portfolio.h"
 #include "Utility.h"
 
+#include <chrono>
 typedef vector<Portfolio> Population;
 
 using namespace std;
+using namespace std::chrono;
 
 #define MUTATION_RATE             0.03
 #define POP_SIZE                  100
@@ -27,11 +29,11 @@ using namespace std;
 #define MAX_ALLOWABLE_GENERATIONS   1000
 
 //returns a integer from 0 to 504
-#define RANDOM_INT      ((int)rand()%505)
+#define RANDOM_INT      (int)rand()%505
 //return a float from 0 to 1
-#define RANDOM_FLOAT    ((float)rand()/RAND_MAX)
+#define RANDOM_FLOAT    (float)((rand()%100)+1)/100
 //return a integer from 0 to 9
-#define RANDOM_NUM      ((int)rand()%10)
+#define RANDOM_NUM      (int)rand()%10
 
 /////////////////////////////////prototypes/////////////////////////////////////////////////////
 
@@ -40,7 +42,8 @@ Portfolio GetPortfolio(vector<string>&symbol_, const map<string, Stock>&stocks_)
 Population GetFirstGeneration(const vector<string>&symbol_, const map<string, Stock>&stocks_);
 void Mutate(Population& population, const vector<string>&symbol_, const map<string, Stock>&stocks_);
 void Crossover(Portfolio&portfolio1, Portfolio&portfolio2, const map<string, Stock>&stocks_);
-vector<pair<Portfolio, Portfolio>> Selection(Population&population);
+vector<pair<int, int>> Selection();
+bool sortByFitness(const Portfolio&p1, const Portfolio&p2) { return p1.fitness > p2.fitness; }
 
 
 //---------------------------------GetRandomSymbols-----------------------------------------
@@ -50,16 +53,16 @@ vector<pair<Portfolio, Portfolio>> Selection(Population&population);
 //-----------------------------------------------------------------------------------------
 vector<string> GetRandomSymbols(const vector<string>&symbol_)
 {
-	vector<string>randomsymbols;
+	vector<string>randomsymbols(STOCK_NUMBER);
+	randomsymbols[0] = symbol_[RANDOM_INT];
+	int count = 1;
 	string symbol;
-	int count = 0;
 	while (count < STOCK_NUMBER)
 	{
-		int temp = RANDOM_INT;
-		symbol = *(symbol_.begin() + temp);
-		if (find(randomsymbols.begin(), randomsymbols.end(), symbol) == randomsymbols.end())
+		symbol = symbol_[RANDOM_INT];
+		if (find(randomsymbols.begin(),randomsymbols.end(),symbol) == randomsymbols.end())
 		{
-			randomsymbols.push_back(symbol);
+			randomsymbols[count] = symbol;
 			count += 1;
 		}
 	}
@@ -71,19 +74,55 @@ vector<string> GetRandomSymbols(const vector<string>&symbol_)
 //  This function returns a portfolio
 //
 //-----------------------------------------------------------------------------------------
-Portfolio GetPortfolio(vector<string>&symbol,const map<string, Stock>&stocks_)
+Portfolio GetPortfolio(vector<string>&symbol, const map<string, Stock>&stocks_)
 {
-	map<Stock,float>stocks;
-	for (vector<string>::iterator it = symbol.begin(); it != symbol.end(); it++)
+	vector<Stock> temp;
+	//auto start = high_resolution_clock::now();
+	for (int n = 0;n<symbol.size();n++)
 	{
-		if (stocks_.find(*it)!=stocks_.end())
-			stocks.insert({ stocks_.find(*it)->second,stocks_.find(*it)->second.weight });
+		temp.push_back(stocks_.find(symbol[n])->second);
 	}
-	Portfolio portfolio(symbol,stocks);
+	Portfolio portfolio(symbol,temp);
+	//auto stop = high_resolution_clock::now();
+	//auto duration = duration_cast<microseconds>(stop - start);
+	//cout << "step1: " << duration.count() << endl;
+
+	//start = high_resolution_clock::now();
 	portfolio.SetDailyReturn();
+	//stop = high_resolution_clock::now();
+	//duration = duration_cast<microseconds>(stop - start);
+	//cout << "step2: " << duration.count() << endl;
+
+	//start = high_resolution_clock::now();
 	portfolio.SetSharpeRatio();
+	//stop = high_resolution_clock::now();
+	//duration = duration_cast<microseconds>(stop - start);
+	//cout << "step3: " << duration.count() << endl;
+	
+	//start = high_resolution_clock::now();
 	portfolio.SetDiverIndex();
-	//portfolio.AssignFitness();
+	//stop = high_resolution_clock::now();
+	//duration = duration_cast<microseconds>(stop - start);
+	//cout << "step5: " << duration.count() << endl;
+	
+
+	//start = high_resolution_clock::now();
+	//portfolio.SetBeta();
+	//stop = high_resolution_clock::now();
+	//duration = duration_cast<microseconds>(stop - start);
+	//cout << "step4: " << duration.count() << endl;
+
+	//start = high_resolution_clock::now();
+	portfolio.SetDividendYield();
+	//stop = high_resolution_clock::now();
+	//duration = duration_cast<microseconds>(stop - start);
+	//cout << "step5: " << duration.count() << endl;
+	
+	//start = high_resolution_clock::now();
+	portfolio.AssignFitness();
+	//stop = high_resolution_clock::now();
+	//duration = duration_cast<microseconds>(stop - start);
+	//cout << "step7: " << duration.count() << endl;
 	return portfolio;
 }
 
@@ -96,11 +135,14 @@ Population GetFirstGeneration(const vector<string>&symbol_, const map<string, St
 {
 	Population first_generation;
 	vector<string>symbol;
+	int count = 1;
 	for (int i = 0; i < POP_SIZE; i++)
 	{
 		symbol = GetRandomSymbols(symbol_);
 		Portfolio portfolio = GetPortfolio(symbol, stocks_);
+		cout << "Portfolio " << count << ": " << portfolio;
 		first_generation.push_back(portfolio);
+		count++;
 	}
 	return first_generation;
 }
@@ -112,21 +154,20 @@ Population GetFirstGeneration(const vector<string>&symbol_, const map<string, St
 //-------------------------------------------------------------------------------------
 void Mutate(Population& population, const vector<string>&symbol_, const map<string,Stock>&stocks_)
 {
-	for (auto it = population.begin(); it != population.end(); it++)
+	for (int it = 0; it < population.size(); it++)
 	{
-		if (RANDOM_FLOAT < MUTATION_RATE)
+		if (RANDOM_FLOAT<MUTATION_RATE)
 		{
-			vector<string> new_symbol = it->GetSymbols();
+			vector<string> new_symbol = population[it].GetSymbols();
 			string to_add = " ";
 			while (to_add == " ")
 			{
-				int temp = RANDOM_INT;
-				string symbol = *(symbol_.begin() + temp);
+				string symbol = symbol_[RANDOM_INT];
 				if (find(new_symbol.begin(), new_symbol.end(), symbol) == new_symbol.end())
 					to_add = symbol;
 			}
-			new_symbol.at(RANDOM_NUM) = to_add;
-			(*it) = GetPortfolio(new_symbol, stocks_);
+			new_symbol[RANDOM_NUM] = to_add;
+			population[it] = GetPortfolio(new_symbol, stocks_);
 		}
 	}
 	return;
@@ -155,7 +196,7 @@ void Crossover(Portfolio&portfolio1, Portfolio&portfolio2, const map<string, Sto
 	//randomly select stock symbols such that plus intersection part there will be 10 stock symbols
 	while (count < STOCK_NUMBER - intersection.size())
 	{
-		symbol = *(pool.begin() + (int)(rand() % pool.size()));
+		symbol = pool[(int)(rand() % pool.size())];
 		if (find(newsymbol1.begin(), newsymbol1.end(), symbol) == newsymbol1.end())
 		{
 			newsymbol1.push_back(symbol);
@@ -163,7 +204,7 @@ void Crossover(Portfolio&portfolio1, Portfolio&portfolio2, const map<string, Sto
 		}
 	}
 	//finally settled stock symbols for two portfolios
-	newsymbol2 = pool - newsymbol1 + intersection;
+	newsymbol2 = (pool - newsymbol1) + intersection;
 	newsymbol1 = newsymbol1 + intersection;
 	//update two portfolio
 	portfolio1 = GetPortfolio(newsymbol1, stocks_);
@@ -172,173 +213,47 @@ void Crossover(Portfolio&portfolio1, Portfolio&portfolio2, const map<string, Sto
 
 //---------------------------------- Selection ---------------------------------------
 //
-//  Selecting paris of portfolios to crossover
+//  Selecting paris of portfolios' index numbers to crossover
 //
 //------------------------------------------------------------------------------------
-vector<pair<Portfolio, Portfolio>> Selection(Population&population)
+vector<pair<int, int>> Selection()
 {
-	vector<pair<Portfolio, Portfolio>> portfolio_pairs;
-	vector<int> numbers;
-	//vector of number of portfolios which could have children
-	for (int i = 1; i < 70; i++)
+	vector<pair<int,int>> portfolio_pairs;
+	vector<int> portfolio_numbers;
+	//vector of number of portfolios which could have children [0,0,1,1,2,2,...,28,28,29,30,31,...,68]
+	for (int i = 0;i<69;i++)
 	{
 		//top 29 portfolios could have crossover two times
-		if (i < 30)
+		if (i < 29)
 		{
-			numbers.push_back(i);
-			numbers.push_back(i);
+			portfolio_numbers.push_back(i);
+			portfolio_numbers.push_back(i);
 		}
 		//portfolios from order 30 to 69 coulde have crossover one time
 		else
 		{
-			numbers.push_back(i);
+			portfolio_numbers.push_back(i);
 		}
 	}
 	//generate pairs
-	while (numbers.size() != 2)
+	int count = 0;
+	while (count<48)
 	{
-		int number1 = *(numbers.begin() + (int)rand % numbers.size());
-		int number2 = *(numbers.begin() + (int)rand % numbers.size());
+		int number1 = portfolio_numbers[(int)rand() % portfolio_numbers.size()];
+		int number2 = portfolio_numbers[(int)rand() % portfolio_numbers.size()];
 		if (number1 != number2)
 		{
-			portfolio_pairs.push_back(make_pair(*(population.begin() + number1 - 1), *(population.begin() + number2 - 1)));
-			numbers.erase(find(numbers.begin(), numbers.end(), number1));
-			numbers.erase(find(numbers.begin(), numbers.end(), number2));
+			portfolio_pairs.push_back(make_pair(number1, number2));
+			portfolio_numbers.erase(find(portfolio_numbers.begin(), portfolio_numbers.end(), number1));
+			portfolio_numbers.erase(find(portfolio_numbers.begin(), portfolio_numbers.end(), number2));
+			count++;
 		}
 	}
 	//add the remaining two portfolios
-	portfolio_pairs.push_back(make_pair(*(population.begin() + *numbers.begin()), *(population.begin() + *(numbers.begin() + 1))));
+	portfolio_pairs.push_back(make_pair(portfolio_numbers[0],portfolio_numbers[1]));
+
+	//return pairs of portfolio's index numbers
 	return portfolio_pairs;
 }
 
-/*
-//-------------------------------main--------------------------------------------------
-//
-//-------------------------------------------------------------------------------------
-int main()
-{
-	//seed the random number generator
-	srand((int)time(NULL));
-
-	//just loop endlessly until user gets bored :0)
-	while (true)
-	{
-		//storage for our population of chromosomes.
-		vector<chromo_typ> Population(POP_SIZE);
-
-		//get a target number from the user. (no error checking)
-		float Target;
-		cout << "\nInput a target number: ";
-		cin >> Target;
-		cout << endl << endl;
-
-		// End the program
-		if (Target > 1000)
-			break;
-
-		//first create a random population, all with zero fitness.
-		for (int i = 0; i < POP_SIZE; i++)
-		{
-			// first generation
-			chromo_typ sample(GetRandomBits(CHROMO_LENGTH), 0.0f);
-			Population.push_back(sample);
-		}
-
-		int GenerationsRequiredToFindASolution = 0;
-
-		//we will set this flag if a solution has been found
-		bool bFound = false;
-
-		//enter the main GA loop
-		while (!bFound)
-		{
-			//this is used during roulette wheel sampling
-			float TotalFitness = 0.0f;
-
-			// test and update the fitness of every chromosome in the 
-			// population
-			for (std::vector<chromo_typ>::iterator i = Population.begin(); i != Population.end(); i++)
-			{
-				i->fitness = AssignFitness(i->bits, Target);
-
-				TotalFitness += i->fitness;
-			}
-
-			// check to see if we have found any solutions (fitness will be 999)
-			for (std::vector<chromo_typ>::iterator i = Population.begin(); i != Population.end(); i++)
-			{
-				if (i->fitness == 999.0f)
-				{
-					cout << "\nSolution found in " << GenerationsRequiredToFindASolution << " generations!" << endl << endl;;
-					cout << "Result: ";
-					PrintChromo(i->bits);
-
-					bFound = true;
-
-					break;
-				}
-			}
-
-			// create a new population by selecting two parents at a time and creating offspring
-			// by applying crossover and mutation. Do this until the desired number of offspring
-			// have been created. 
-
-			//sort population by fitness
-			std::sort(Population.begin(), Population.end());
-
-			//define some temporary storage for the new population we are about to create
-			chromo_typ temp[(int)(POP_SIZE*CROSSOVER_RATE)];
-
-			int cPop = 0;
-
-			//loop until we have created POP_SIZE new chromosomes
-			while (cPop < POP_SIZE*CROSSOVER_RATE)
-			{
-				// we are going to create the new population by grabbing members of the old population
-				// two at a time via roulette wheel selection.
-				string offspring1 = Roulette(TotalFitness, Population);
-				string offspring2 = Roulette(TotalFitness, Population);
-
-				//add crossover dependent on the crossover rate
-				Crossover(offspring1, offspring2);
-
-				//now mutate dependent on the mutation rate
-				Mutate(offspring1);
-				Mutate(offspring2);
-
-				//add these offspring to the new population. (assigning zero as their
-				//fitness scores)
-				temp[cPop++] = chromo_typ(offspring1, 0.0f);
-				temp[cPop++] = chromo_typ(offspring2, 0.0f);
-
-			}//end loop
-
-			 //copy temp population into main population array
-			vector<chromo_typ>::iterator it = Population.begin();
-			for (int i = 0; i < POP_SIZE*CROSSOVER_RATE; i++)
-			{
-				*it = temp[i];
-				it += 1;
-			}
-
-			++GenerationsRequiredToFindASolution;
-
-			// exit app if no solution found within the maximum allowable number
-			// of generations
-			if (GenerationsRequiredToFindASolution > MAX_ALLOWABLE_GENERATIONS)
-			{
-				cout << "No solutions found this run!";
-
-				bFound = true;
-			}
-
-		}
-
-		cout << "\n\n\n";
-
-	}//end while
-
-	return 0;
-}
-*/
 #endif

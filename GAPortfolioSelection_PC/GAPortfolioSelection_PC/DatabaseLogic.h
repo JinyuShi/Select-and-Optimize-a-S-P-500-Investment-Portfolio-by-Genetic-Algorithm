@@ -268,7 +268,7 @@ int GetTrade(const char *sql_select, sqlite3 *db, Stock& stock_)
 	return 0;
 }
 
-int GetRiskfreerates(const char *sql_select, sqlite3 *db, Stock& stock_)
+int GetRiskfreerates(const char *sql_select, sqlite3 *db, Stock&stock_)
 {
 	int rc = 0;
 	char *error = NULL;
@@ -289,20 +289,13 @@ int GetRiskfreerates(const char *sql_select, sqlite3 *db, Stock& stock_)
 	// Retrieve Table
 	// Skip the Header
 	float risk_free_return;
-	map<string, float> dailyreturn = stock_.getdailyreturn();
-	for (map<string, float>::iterator it = dailyreturn.begin(); it != dailyreturn.end(); it++)
+	for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
 	{
-		for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
-		{
-			// id date adjusted_close risk_free_return
-			int DatePosition = (rowCtr * columns) + 1;
-			string date = results[DatePosition];
-			if (date == it->first)
-			{
-				risk_free_return = stof(results[DatePosition + 1]);
-				stock_.addRiskFreeRates(date, risk_free_return);
-			}
-		}
+		// id date adjusted_close
+		int DatePosition = (rowCtr * columns) + 1;
+		string date = results[DatePosition];
+		risk_free_return = stof(results[DatePosition + 1]);
+		stock_.addRiskFreeReturn(date, risk_free_return);
 	}
 	// This function properly releases the value array returned by sqlite3_get_table()
 	sqlite3_free_table(results);
@@ -316,7 +309,7 @@ int GetWeight(const char *sql_select, sqlite3 *db, Stock& stock_)
 
 	char **results = NULL;
 	int rows, columns;
-	float weight;
+	float weight = 0.0;
 	// A result table is memory data structure created by the sqlite3_get_table() interface.
 	// A result table records the complete query results from one or more queries.
 	sqlite3_get_table(db, sql_select, &results, &rows, &columns, &error);
@@ -710,7 +703,7 @@ int PopulateRiskFreeReturnTable(const Json::Value & root, sqlite3 *db)
 					adjusted_close = (float)(inner->asDouble()) / 252;
 			}
 		}
-
+		
 		// Execute SQL
 		char stockDB_insert_table[512];
 		sprintf_s(stockDB_insert_table, "INSERT INTO RiskFreeReturn (id, date, adjusted_close) VALUES(%d, \"%s\", %f)", count, date.c_str(), adjusted_close);
@@ -750,7 +743,7 @@ int PopulateNewSP500Table(const Json::Value & root, sqlite3 *db)
 
 			// Execute SQL
 			char sp500_insert_table[512];
-			sprintf_s(sp500_insert_table, "INSERT INTO SP500_ (id, symbol, name, sector) VALUES(%d, \"%s\", \"%s\", \"%s\")", count, symbol.c_str(), name.c_str(), sector.c_str());
+			sprintf_s(sp500_insert_table, "INSERT INTO SP500 (id, symbol, name, sector) VALUES(%d, \"%s\", \"%s\", \"%s\")", count, symbol.c_str(), name.c_str(), sector.c_str());
 			if (InsertTable(sp500_insert_table, db) == -1)
 				return -1;
 		}
@@ -800,4 +793,5 @@ int PopulateSPYTable(const Json::Value & root, sqlite3 *db)
 	}
 	return 0;
 }
+
 #endif

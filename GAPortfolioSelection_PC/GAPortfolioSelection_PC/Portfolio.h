@@ -17,89 +17,83 @@ class Portfolio
 {
 private:
 	vector<string> Symbols;
-	map<Stock,float> Stocks;
+	vector<Stock> Stocks;
 public:
 	maps DailyReturn;
-	float sharperatio, diverindex, fitness;
+	float sharperatio, diverindex, beta, fitness, dividendyield;
 	
-	Portfolio(vector<string>symbols_,map<Stock,float>stocks_) : Symbols(symbols_),Stocks(stocks_) {}
+	Portfolio(vector<string>symbols_, const vector<Stock>stocks_)
+	{
+		Symbols = symbols_;
+		vector<Stock> temp = stocks_;
+		float total_weight = 0;
+		for (int n = 0;n<10;n++)
+		{
+			total_weight += stocks_[n].weight;
+		}
+		for (int n = 0;n<10;n++)
+		{
+			temp[n].weight /= total_weight;
+		}
+		Stocks = temp;
+	}
+	Portfolio() {}
 	~Portfolio() {}
 	vector<string> GetSymbols() { return Symbols; }
+	vector<Stock> GetStocks() { return Stocks; }
 	void SetDailyReturn()
 	{
-		vector<maps> dailyreturns;
-		for (map<Stock, float>::const_iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		maps dailyreturns = Stocks[0].getdailyreturn()*Stocks[0].weight;
+		for (vector<Stock>::iterator itr = Stocks.begin()+1; itr != Stocks.end(); itr++)
 		{
-			Stock temp = it->first;
-			dailyreturns.push_back((temp.getdailyreturn())*(it->second));
+			dailyreturns = dailyreturns + itr->getdailyreturn()*itr->weight;
 		}
-		DailyReturn = sum(dailyreturns);
+		DailyReturn = dailyreturns;
 	}
-	float CalReturn() { return mean(DailyReturn); }
-	float CalRisk() { return sd(DailyReturn); }
-	float CalBeta()
+	void SetSharpeRatio()
 	{
-		float portfolio_beta = 0;
-		for (map<Stock,float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
-		{
-			Stock stock = it->first;
-			portfolio_beta += (stock.getbeta())*(it->second);
-		}
-		return portfolio_beta;
+		Stock temp = Stocks[0];
+		sharperatio = (mean(DailyReturn) - mean(temp.getriskfreereturn())) / sd(DailyReturn);
 	}
-	float CalSharpeRatio()
-	{
-		vector<maps>riskfreerates;
-		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
-		{
-			Stock temp = Stocks.begin()->first;
-			riskfreerates.push_back(temp.getriskfreerates());
-		}
-		return (CalReturn() - mean(largestmaps(riskfreerates))) / CalRisk();
-	}
-	float CalTreynor()
-	{
-		vector<maps>riskfreerates;
-		for (map<Stock, float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
-		{
-			Stock temp = Stocks.begin()->first;
-			riskfreerates.push_back(temp.getriskfreerates());
-		}
-		return  (CalReturn() - mean(largestmaps(riskfreerates))) / CalBeta();
-	}
-	float CalDiverIndex()
+	void SetDiverIndex()
 	{
 		//pi for stock i = (weight*sigma)^2/sum of (weight*sigma)^2
 		//H = sum of pi^2
 		float total_weight = 0, p = 0, H = 0;
-		for (map<Stock,float>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		for (vector<Stock>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 		{
-			Stock stock = it->first;
-			p = pow(it->second, 2)*pow(stock.CalStd(), 2);
+			p = pow(it->weight, 2)*pow(it->CalStd(), 2);
 			total_weight += p;
 			H += pow(p, 2);
 		}
 		H /= pow(total_weight, 2);
-		return H;
+		diverindex = H;
 	}
-	void SetSharpeRatio() { sharperatio = CalSharpeRatio(); }
-	void SetDiverIndex() { diverindex = CalDiverIndex(); }
-	void AssignFitness()
+	void SetDividendYield()
 	{
-		float a = 0, b = 0, c = 0;
-		fitness = a * sharperatio + b / diverindex + c;
+		float portfolio_dividendyield = 0;
+		for (vector<Stock>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		{
+			portfolio_dividendyield += it->getdivyield()*it->weight;
+		}
+		dividendyield = portfolio_dividendyield;
 	}
+	void SetBeta()
+	{
+		float portfolio_beta = 0;
+		for (vector<Stock>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
+		{
+			portfolio_beta += it->getbeta()*it->weight;
+		}
+		beta = portfolio_beta;
+	}
+	void AssignFitness() { fitness = 0.6 * 100 * sharperatio + 0.2 * 100 * dividendyield + 0.2*(1/ diverindex); }//0.1*beta; } 
 	friend ostream & operator << (ostream & out, const Portfolio & p)
 	{
-		for (vector<string>::const_iterator it = p.Symbols.begin(); it != p.Symbols.end(); it++)
-		{
-			out << *it << " ";
-		}
-		out << endl;
-		out << "Sharpe Ratio = " << p.sharperatio << ", Diver Index = " << p.diverindex << endl;
+		out << "fitness = "<<p.fitness<< endl;
 		return out;
 	}
-	bool operator>(const Portfolio&p) const { return fitness > p.fitness; }
+	bool sortByFitness(const Portfolio&p1) { return fitness > p1.fitness; }
 };
 
-#endif
+#endif 

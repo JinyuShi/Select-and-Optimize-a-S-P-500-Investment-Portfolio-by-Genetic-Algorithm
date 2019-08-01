@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <numeric>
 
 using namespace std;
 typedef map<string, float> maps;
@@ -23,50 +24,31 @@ maps operator*(const maps&m, float f)
 	maps result;
 	for (auto it = m.begin(); it != m.end(); it++)
 	{
-		result.insert({ it->first,(it->second)*f });
+		result[it->first]=(it->second)*f;
 	}
 	return result;
 }
 
+maps operator+(const maps&m, const maps&n)
+{
+	maps result = m;
+	for (auto it = n.begin(); it != n.end(); it++)
+	{
+		if (result.find(it->first)!=result.end())
+			result[it->first] += it->second;
+		else
+		{
+			result[it->first] = it->second;
+		}
+	}
+	return result;
+}
 maps operator-(const maps&m, float f)
 {
 	maps result;
 	for (auto it = m.begin(); it != m.end(); it++)
 	{
-		result.insert({ it->first,(it->second)-f });
-	}
-	return result;
-}
-maps largestmaps(const vector<maps>&v)
-{
-	maps result;
-	for (auto it = v.begin(); it != v.end(); it++)
-	{
-		if (it->size() > result.size())
-			result = *it;
-	}
-	return result;
-}
-
-maps sum(const vector<maps>&v)
-{
-	maps result,large;
-	vector<string>date;
-	float day_return;
-	large = largestmaps(v);
-	for (auto it = large.begin(); it != large.end(); it++)
-	{
-		date.push_back(it->first);
-	}
-	for (auto it = date.begin(); it != date.end(); it++)
-	{
-		day_return = 0;
-		for (auto itr = v.begin(); itr != v.end(); itr++)
-		{
-			if (itr->find(*it) != itr->end())
-				day_return += itr->find(*it)->second;
-		}
-		result.insert({ *it,day_return });
+		result[it->first] = (it->second) - f;
 	}
 	return result;
 }
@@ -86,10 +68,10 @@ float sd(const maps&m)
 {
 	float result = 0;
 	float mean_ = mean(m);
-	maps n = m - mean_;
+	maps n = m;
 	for (auto it = n.begin(); it != n.end(); it++)
 	{
-		result += pow(it->second, 2);
+		result += pow(it->second-mean_, 2);
 	}
 	result /= n.size();
 	return sqrt(result);
