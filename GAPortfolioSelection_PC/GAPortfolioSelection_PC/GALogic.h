@@ -77,52 +77,24 @@ vector<string> GetRandomSymbols(const vector<string>&symbol_)
 Portfolio GetPortfolio(vector<string>&symbol, const map<string, Stock>&stocks_)
 {
 	vector<Stock> temp;
-	//auto start = high_resolution_clock::now();
 	for (int n = 0;n<symbol.size();n++)
 	{
 		temp.push_back(stocks_.find(symbol[n])->second);
 	}
 	Portfolio portfolio(symbol,temp);
-	//auto stop = high_resolution_clock::now();
-	//auto duration = duration_cast<microseconds>(stop - start);
-	//cout << "step1: " << duration.count() << endl;
 
-	//start = high_resolution_clock::now();
 	portfolio.SetDailyReturn();
-	//stop = high_resolution_clock::now();
-	//duration = duration_cast<microseconds>(stop - start);
-	//cout << "step2: " << duration.count() << endl;
-
-	//start = high_resolution_clock::now();
+	
 	portfolio.SetSharpeRatio();
-	//stop = high_resolution_clock::now();
-	//duration = duration_cast<microseconds>(stop - start);
-	//cout << "step3: " << duration.count() << endl;
 	
-	//start = high_resolution_clock::now();
 	portfolio.SetDiverIndex();
-	//stop = high_resolution_clock::now();
-	//duration = duration_cast<microseconds>(stop - start);
-	//cout << "step5: " << duration.count() << endl;
 	
-
-	//start = high_resolution_clock::now();
 	//portfolio.SetBeta();
-	//stop = high_resolution_clock::now();
-	//duration = duration_cast<microseconds>(stop - start);
-	//cout << "step4: " << duration.count() << endl;
 
-	//start = high_resolution_clock::now();
 	portfolio.SetDividendYield();
-	//stop = high_resolution_clock::now();
-	//duration = duration_cast<microseconds>(stop - start);
-	//cout << "step5: " << duration.count() << endl;
 	
-	//start = high_resolution_clock::now();
 	portfolio.AssignFitness();
-	//stop = high_resolution_clock::now();
-	//duration = duration_cast<microseconds>(stop - start);
-	//cout << "step7: " << duration.count() << endl;
+
 	return portfolio;
 }
 

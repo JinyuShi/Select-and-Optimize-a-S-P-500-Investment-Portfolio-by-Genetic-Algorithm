@@ -26,6 +26,17 @@ public:
 	{
 		Symbols = symbols_;
 		vector<Stock> temp = stocks_;
+		for (int n = 0; n < temp.size(); n++)
+		{
+			maps r = temp[n].getriskfreereturn();
+			maps::iterator itr = r.find("2018-12-31");
+			r.erase(itr, r.end());
+			temp[n].setriskfreereturn(r);
+			maps d = temp[n].getdailyreturn();
+			maps::iterator it = d.find("2018-12-31");
+			d.erase(it, d.end());
+			temp[n].setdailyreturn(d);
+		}
 		float total_weight = 0;
 		for (int n = 0;n<10;n++)
 		{
@@ -88,9 +99,15 @@ public:
 		beta = portfolio_beta;
 	}
 	void AssignFitness() { fitness = 0.6 * 100 * sharperatio + 0.2 * 100 * dividendyield + 0.2*(1/ diverindex); }//0.1*beta; } 
-	friend ostream & operator << (ostream & out, const Portfolio & p)
+	friend ostream & operator << (ostream & out, const Portfolio &p)
 	{
 		out << "fitness = "<<p.fitness<< endl;
+		Portfolio temp = p;
+		for (vector<string>::iterator it = temp.GetSymbols().begin(); it != temp.GetSymbols().end(); it++)
+		{
+			out << *it << " ";
+		}
+		out << endl;
 		return out;
 	}
 	bool sortByFitness(const Portfolio&p1) { return fitness > p1.fitness; }

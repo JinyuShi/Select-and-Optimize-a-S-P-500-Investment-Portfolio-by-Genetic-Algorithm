@@ -340,6 +340,39 @@ int GetWeight(const char *sql_select, sqlite3 *db, Stock& stock_)
 	return 0;
 }
 
+int GetPortfolio(const char *sql_select, sqlite3 *db, vector<string> &symbol)
+{
+	int rc = 0;
+	char *error = NULL;
+
+	char **results = NULL;
+	int rows, columns;
+	// A result table is memory data structure created by the sqlite3_get_table() interface.
+	// A result table records the complete query results from one or more queries.
+	sqlite3_get_table(db, sql_select, &results, &rows, &columns, &error);
+	if (rc)
+	{
+		cerr << "Error executing SQLite3 query: " << sqlite3_errmsg(db) << endl << endl;
+		sqlite3_free(error);
+		system("pause");
+		return -1;
+	}
+
+	// Retrieve Table
+	for(int n =0;n<columns;n++)
+	{
+		// Determine Cell Position of Symb
+		// id symbol name sector
+		int cellPosition = (rows*columns)+n;
+
+		// Add Stock Symbol to Vector
+		symbol.push_back(results[cellPosition]);
+	}
+	// This function properly releases the value array returned by sqlite3_get_table()
+	sqlite3_free_table(results);
+	return 0;
+}
+
 //writing call back function for storing fetched values in memory
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {

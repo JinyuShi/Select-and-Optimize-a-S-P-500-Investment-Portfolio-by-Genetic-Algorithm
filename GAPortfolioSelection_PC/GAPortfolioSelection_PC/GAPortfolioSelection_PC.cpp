@@ -53,7 +53,7 @@ int main(void)
 	string trade_select_table = "SELECT * FROM Stock_SPY;";
 	if (GetTrade(trade_select_table.c_str(), stockDB, SPY) == -1)
 		return -1;
-
+	
 	bool done = true;
 	while (done)
 	{
@@ -89,7 +89,6 @@ int main(void)
 				}
 				string column(begin);
 				json_SPY_All_holdings[count++][keys[index]] = column;
-
 			}
 
 			string spy_drop_table = "DROP TABLE IF EXISTS SPY;";
@@ -255,15 +254,12 @@ int main(void)
 			Population population = GetFirstGeneration(Symbol, Stocks);
 			cout << "Created the First Generation" << endl;
 			//sort population by fitness score with descending order
-			auto start = high_resolution_clock::now();
 			std::sort(population.begin(), population.end(), sortByFitness);
-			auto stop = high_resolution_clock::now();
-			auto duration = duration_cast<microseconds>(stop - start);
-			cout << "step seclection takes: " << duration.count() << endl;
+
 			int generation_number = 1;
 			vector<pair<int, int>> portfolio_pool;
 			cout << "Strat Populating 1000 Generations" << endl;
-			while (generation_number < 20)
+			while (generation_number < 40)
 			{
 				cout << "Start Generation " << generation_number + 1 << endl;
 				Population temp;
@@ -299,42 +295,56 @@ int main(void)
 
 				generation_number++;
 				cout << "Finish Generation " << generation_number << endl;
+				if (population[0].fitness == population[99].fitness)
+				{
+					generation_number = MAX_ALLOWABLE_GENERATIONS;
+					cout << "All portfolios have the same fitness number. Population ends!" << endl;
+				}
 			}
 			target_portfolio = population[0];
-			cout << "The Best Portfolio is " << endl;
-			for (int n = 0; n < population[0].GetSymbols().size(); n++)
-			{
-				cout << population[0].GetSymbols()[n] << " ";
-			}
-			cout << endl;
-			cout << "Best Portfolio's " << population[0] << endl;
+			cout << "The Best Portfolio: " << target_portfolio;
 
+			vector<string> portfolio_symbol = target_portfolio.GetSymbols();
+			char portfolio_insert_table[512];
+			sprintf_s(portfolio_insert_table, "INSERT INTO Best_Portfolios (stock_1, stock_2, stock_3,stock_4,stock_5,stock_6,stock_7,stock_8,stock_9,stock_10 VALUES(\"%s\", \"%s\", \"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\")", portfolio_symbol[0].c_str(), portfolio_symbol[1].c_str(), portfolio_symbol[2].c_str(), portfolio_symbol[3].c_str(), portfolio_symbol[4].c_str(), portfolio_symbol[5].c_str(), portfolio_symbol[6].c_str(), portfolio_symbol[7].c_str(), portfolio_symbol[8].c_str(), portfolio_symbol[9].c_str());
+			if (InsertTable(portfolio_insert_table, stockDB) == -1)
+				return -1;
 		}
 		else if (option == 7)
 		{
-			string Monday[] = { "2018-12-31","2019-01-07","2019-01-14","2019-01-22","2019-01-28","2019-02-04","2019-02-11","2019-02-19","2019-02-25","2019-03-04","2019-03-11","2019-03-18","2019-03-25","2019-04-01","2019-04-08","2019-04-15","2019-04-22","2019-04-29","2019-05-06","2019-05-13","2019-05-20","2019-05-28","2019-06-03","2019-06-10","2019-06-17","2019-06-24" };
-			string Friday[] = { "2019-01-04","2019-01-11","2019-01-18","2019-01-25","2019-02-01","2019-02-08","2019-02-15","2019-02-22","2019-03-01","2019-03-08","2019-03-15","2019-03-22","2019-03-29","2019-04-05","2019-04-12","2019-04-18","2019-04-26","2019-05-03","2019-05-10","2019-05-17","2019-05-24","2019-05-31","2019-06-07","2019-06-14","2019-06-21","2019-06-28" };
+			string buy_day[] = { "2018-12-31","2019-01-07","2019-01-14","2019-01-22","2019-01-28","2019-02-04","2019-02-11","2019-02-19","2019-02-25","2019-03-04","2019-03-11","2019-03-18","2019-03-25","2019-04-01","2019-04-08","2019-04-15","2019-04-22","2019-04-29","2019-05-06","2019-05-13","2019-05-20","2019-05-28","2019-06-03","2019-06-10","2019-06-17","2019-06-24" };
+			string sell_day[] = { "2019-01-04","2019-01-11","2019-01-18","2019-01-25","2019-02-01","2019-02-08","2019-02-15","2019-02-22","2019-03-01","2019-03-08","2019-03-15","2019-03-22","2019-03-29","2019-04-05","2019-04-12","2019-04-18","2019-04-26","2019-05-03","2019-05-10","2019-05-17","2019-05-24","2019-05-31","2019-06-07","2019-06-14","2019-06-21","2019-06-28" };
+			
 			vector<string>target_symbol;
-			vector<Stock> temp;
-			//string test[] = { "HCA","ZTS","ULTA","ROST","PNW","CHTR","ABBV","HD","AVGO","NFLX" };
-			//string test[] = { "ES", "ULTA", "MCD", "ORLY", "EW", "ABBV", "PNW", "CHTR", "AVGO", "NFLX" };
-			//string test[] = { "MCD", "ULTA", "ROST", "INFO", "ABBV", "PNW", "EW", "NFLX", "CHTR", "AVGO" };
-			//string test[] = { "PNW", "EW", "INFO", "ABBV", "DLTR", "FLT", "A", "AMGN", "SBUX", "AVGO" };
-			//string test[] = { "AWK","SPGI", "AGN", "INFO", "DG", "MKTX", "CHTR", "HD", "AVGO", "NFLX" };
-			string test[] = { "MKTX", "INFO", "AWK", "REGN", "AZO", "ZTS", "TJX", "EW", "NOC", "CHTR" };
-			for (int n = 0; n < sizeof(test) / sizeof(*test); n++)
+			vector<Stock> target_stock;
+			string portfolio_select_table = "SELECT * FROM Best_Portfolios;";
+			if (GetPortfolio(portfolio_select_table.c_str(), stockDB, target_symbol) == -1)
+			return -1;
+			for (vector<string>::iterator it = target_symbol.begin(); it != target_symbol.end(); it++)
 			{
-				target_symbol.push_back(test[n]);
-				temp.push_back(Stocks.find(test[n])->second);
+				string weight_select_table = "SELECT * FROM SPY;";
+				Stock temp = Stock(*it);
+				if (GetWeight(weight_select_table.c_str(), stockDB, temp) == -1)
+					return -1;
+				string stockDB_symbol = "Stock_" + *it;
+				if (stockDB_symbol == "Stock_BRK-B")					
+					stockDB_symbol = "Stock_BRK_B";
+				else if (stockDB_symbol == "Stock_BF-B")
+					stockDB_symbol = "Stock_BF_B";
+				string trade_select_table = "SELECT * FROM " + stockDB_symbol + ";";
+				if (GetTrade(trade_select_table.c_str(), stockDB, temp) == -1)
+					return -1;
+				cout << "Constructed the Stock " << *it << endl;
+				target_stock.push_back(temp);
 			}
-			target_portfolio = Portfolio(target_symbol, temp);
+			target_portfolio = Portfolio(target_symbol, target_stock);
 
 			vector<float> Weeks;
 			vector<float> SPY_Weeks;
 			vector<Stock> stocks = target_portfolio.GetStocks();
-			for (int n = 0; n < (int)(sizeof(Monday) / sizeof(*Monday)); n++)
+			for (int n = 0; n < (int)(sizeof(buy_day) / sizeof(*buy_day)); n++)
 			{
-				float end_price = 0.0;
+				float end_price1 = 0.0;
 				float end_price2 = 0.0;
 				for (vector<Stock>::iterator it = stocks.begin(); it != stocks.end(); it++)
 				{
@@ -342,28 +352,28 @@ int main(void)
 					vector<Trade> trades = it->gettrade();
 					for (vector<Trade>::iterator itr = trades.begin(); itr != trades.end(); itr++)
 					{
-						if (itr->getDate() == Monday[n])
+						if (itr->getDate() == buy_day[n])
 						{
-							number = 1000000 * it->weight / itr->getOpen();
+							number = 1000000 * it->weight / itr->getClose();
 						}
-						else if (itr->getDate() == Friday[n] && number != 0.0)
+						else if (itr->getDate() == sell_day[n] && number != 0.0)
 						{
-							end_price += number * itr->getAdjClose();
+							end_price1 += number * itr->getClose();
 						}
 					}
 				}
-				Weeks.push_back(end_price-1000000);
+				Weeks.push_back(end_price1-1000000);
 				float number = 0.0;
 				vector<Trade> spy_trade = SPY.gettrade();
 				for (vector<Trade>::iterator itr = spy_trade.begin(); itr != spy_trade.end(); itr++)
 				{
-					if (itr->getDate() == Monday[n])
+					if (itr->getDate() == buy_day[n])
 					{
-						number = 1000000 / itr->getOpen();
+						number = 1000000 / itr->getClose();
 					}
-					else if (itr->getDate() == Friday[n] && number != 0.0)
+					else if (itr->getDate() == sell_day[n] && number != 0.0)
 					{
-						end_price2 = number * itr->getAdjClose();
+						end_price2 = number * itr->getClose();
 					}
 				}
 				SPY_Weeks.push_back(end_price2-1000000);
@@ -375,21 +385,24 @@ int main(void)
 			cout.width(20); cout.setf(ios::left); cout << "Weeks ";
 			cout.width(20); cout.setf(ios::left); cout << "This Portfolio ";
 			cout.width(20); cout.setf(ios::left); cout<<"SPY Portfolio ";
-			cout.width(20); cout.setf(ios::left); cout << "beats or not " << endl;
+			cout.width(20); cout.setf(ios::left); cout << "beats or not ";
+			cout.width(20); cout.setf(ios::left); cout << "Current Position Compared to SPY" << endl;
 			//display backtesting result
 			for (int n = 0; n < Weeks.size(); n++)
 			{
 				cout.width(20); cout.setf(ios::left); cout << "Week " + to_string(n + 1);
 				cout.width(20); cout.setf(ios::left); cout << Weeks[n];
 				cout.width(20); cout.setf(ios::left); cout << SPY_Weeks[n];
-				cout.width(20); cout.setf(ios::left); cout<< bool(Weeks[n] >= SPY_Weeks[n]) << endl;
+				cout.width(20); cout.setf(ios::left); cout << bool(Weeks[n] >= SPY_Weeks[n]);
 				earning1 += Weeks[n];
 				earning2 += SPY_Weeks[n];
+				cout.width(20); cout.setf(ios::left); cout << earning1 - earning2 << endl;
 			}
 			cout.width(20); cout.setf(ios::left); cout << "Final position ";
 			cout.width(20); cout.setf(ios::left); cout << earning1;
 			cout.width(20); cout.setf(ios::left); cout << earning2;
-			cout.width(20); cout.setf(ios::left); cout << bool(earning1 >= earning2) << endl;
+			cout.width(20); cout.setf(ios::left); cout << bool(earning1 >= earning2);
+			cout.width(20); cout.setf(ios::left); cout << earning1 - earning2 << endl;
 		}
 		else if (option == 8)
 		{
@@ -410,11 +423,11 @@ int main(void)
 					{
 						if (itr->getDate() == July_Monday[n])
 						{
-							number = 1000000 * it->weight / itr->getOpen();
+							number = 1000000 * it->weight / itr->getClose();
 						}
 						else if (itr->getDate() == July_Friday[n] && number != 0.0)
 						{
-							end_price += number * itr->getAdjClose();
+							end_price += number * itr->getClose();
 						}
 					}
 				}
@@ -425,11 +438,11 @@ int main(void)
 				{
 					if (itr->getDate() == July_Monday[n])
 					{
-						number = 1000000 / itr->getOpen();
+						number = 1000000 / itr->getClose();
 					}
 					else if (itr->getDate() == July_Friday[n] && number != 0.0)
 					{
-						end_price2 = number * itr->getAdjClose();
+						end_price2 = number * itr->getClose();
 					}
 				}
 				SPY_Weeks.push_back(end_price2-1000000);
@@ -440,21 +453,24 @@ int main(void)
 			cout.width(20); cout.setf(ios::left); cout << "Weeks ";
 			cout.width(20); cout.setf(ios::left); cout << "This Portfolio ";
 			cout.width(20); cout.setf(ios::left); cout << "SPY Portfolio ";
-			cout.width(20); cout.setf(ios::left); cout << "beats or not " << endl;
-			//display backtesting result
+			cout.width(20); cout.setf(ios::left); cout << "beats or not ";
+			cout.width(20); cout.setf(ios::left); cout << "Current Position Compared to SPY" << endl;
+			//display probation test result
 			for (int n = 0; n < Weeks.size(); n++)
 			{
 				cout.width(20); cout.setf(ios::left); cout << "Week " + to_string(n + 1);
 				cout.width(20); cout.setf(ios::left); cout << Weeks[n];
 				cout.width(20); cout.setf(ios::left); cout << SPY_Weeks[n];
-				cout.width(20); cout.setf(ios::left); cout << bool(Weeks[n] >= SPY_Weeks[n]) << endl;
+				cout.width(20); cout.setf(ios::left); cout << bool(Weeks[n] >= SPY_Weeks[n]);
 				earning1 += Weeks[n];
 				earning2 += SPY_Weeks[n];
+				cout.width(20); cout.setf(ios::left); cout << earning1 - earning2 << endl;
 			}
 			cout.width(20); cout.setf(ios::left); cout << "Final position ";
 			cout.width(20); cout.setf(ios::left); cout << earning1;
 			cout.width(20); cout.setf(ios::left); cout << earning2;
-			cout.width(20); cout.setf(ios::left); cout << bool(earning1 >= earning2) << endl;
+			cout.width(20); cout.setf(ios::left); cout << bool(earning1 >= earning2);
+			cout.width(20); cout.setf(ios::left); cout << earning1 - earning2 << endl;
 		}
 		else if (option == 9)
 		{

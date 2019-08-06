@@ -31,6 +31,7 @@ public:
 	~Trade() {}
 	float getOpen() { return open; }
 	string getDate() { return date; }
+	float getClose() { return close; }
 	float getAdjClose() { return adjusted_close; }
 	friend ostream & operator << (ostream & out, const Trade & t)
 	{
@@ -105,7 +106,9 @@ public:
 	float CalStd() { return sd(dailyreturns); }
 	vector<Trade> gettrade() { return trades; }
 	maps getdailyreturn() { return dailyreturns; }
+	void setdailyreturn(maps m) { dailyreturns = m; }
 	maps getriskfreereturn() { return riskfreereturn; }
+	void setriskfreereturn(maps m) { riskfreereturn = m; }
 	string getsymbol() { return symbol; }
 	float getbeta() { return fundamental.getBeta(); }
 	float getdivyield() { return fundamental.getdivyield(); }
