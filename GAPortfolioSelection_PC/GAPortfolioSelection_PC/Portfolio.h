@@ -8,7 +8,7 @@
 #include<algorithm>
 
 #include "MarketDataLogic.h"
-#include "DatabaseLogic.h"
+#include "Stock.h"
 #include "Utility.h"
 
 using namespace std;
@@ -20,7 +20,7 @@ private:
 	vector<Stock> Stocks;
 public:
 	maps DailyReturn;
-	float sharperatio, diverindex, beta, fitness, dividendyield;
+	float sharperatio, diverindex, fitness, dividendyield;
 	
 	Portfolio(vector<string>symbols_, const vector<Stock>stocks_)
 	{
@@ -89,16 +89,7 @@ public:
 		}
 		dividendyield = portfolio_dividendyield;
 	}
-	void SetBeta()
-	{
-		float portfolio_beta = 0;
-		for (vector<Stock>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
-		{
-			portfolio_beta += it->getbeta()*it->weight;
-		}
-		beta = portfolio_beta;
-	}
-	void AssignFitness() { fitness = 0.6 * 100 * sharperatio + 0.2 * 100 * dividendyield + 0.2*(1/ diverindex); }//0.1*beta; } 
+	void AssignFitness() { fitness = 0.6 * 100 * sharperatio + 0.2 * 100 * dividendyield + 0.2*(1 / diverindex); }
 	friend ostream & operator << (ostream & out, const Portfolio &p)
 	{
 		out << "fitness = "<<p.fitness<< endl;

@@ -13,6 +13,7 @@
 #include <algorithm>
 
 #include "MarketDataLogic.h"
+#include "Stock.h"
 #include "Portfolio.h"
 #include "Utility.h"
 
@@ -88,8 +89,6 @@ Portfolio GetPortfolio(vector<string>&symbol, const map<string, Stock>&stocks_)
 	portfolio.SetSharpeRatio();
 	
 	portfolio.SetDiverIndex();
-	
-	//portfolio.SetBeta();
 
 	portfolio.SetDividendYield();
 	

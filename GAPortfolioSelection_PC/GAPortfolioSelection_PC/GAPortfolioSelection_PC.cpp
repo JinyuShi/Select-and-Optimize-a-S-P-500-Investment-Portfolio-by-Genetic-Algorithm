@@ -16,16 +16,14 @@
 
 #include "MarketDataLogic.h"
 #include "DatabaseLogic.h"
+#include "Stock.h"
 #include "Portfolio.h"
 #include "GALogic.h"
 #include "Utility.h"
 
-#include <chrono>
-
 #define NUM_OF_STOCKS 505
 
 using namespace std;
-using namespace std::chrono;
 
 int main(void)
 {
@@ -44,7 +42,7 @@ int main(void)
 	Portfolio target_portfolio;
 
 	//get symbols of all stocks
-	string spy_select_table = "SELECT * FROM SPY;";
+	string spy_select_table = "SELECT * FROM SP500;";
 	if (GetStockSymbol(spy_select_table.c_str(), stockDB, Symbol) == -1)
 		return -1;
 
@@ -60,8 +58,8 @@ int main(void)
 		string input;
 		cout << "Please select a option number: " << endl << endl
 			<< "1: Retrieve SP500 Stock Symbol " << endl
-			<< "2: Retrieve Stock Trade Data and Save to Database " << endl
-			<< "3: Retrieve Stock Fundamental Data and Save to Database " << endl
+			<< "2: Retrieve Stock Fundamental Data and Save to Database " << endl
+			<< "3: Retrieve Stock Trade Data and Save to Database " << endl
 			<< "4: Retrieve Risk Free Rate Data and Save to Database " << endl
 			<< "5: Construct All Stock Objects " << endl
 			<< "6: Create First Generation and Populate 1000 Generations" << endl
@@ -91,22 +89,64 @@ int main(void)
 				json_SPY_All_holdings[count++][keys[index]] = column;
 			}
 
-			string spy_drop_table = "DROP TABLE IF EXISTS SPY;";
+			string spy_drop_table = "DROP TABLE IF EXISTS SP500;";
 			if (DropTable(spy_drop_table.c_str(), stockDB) == -1)
 				return -1;
-			string spy_create_table = "CREATE TABLE SPY (id INT PRIMARY KEY NOT NULL, symbol CHAR(20) NOT NULL, name CHAR(20) NOT NULL, sector CHAR(20) NOT NULL, weight REAL NOT NULL, shares INT NOT NULL);";
+			string spy_create_table = "CREATE TABLE SP500 (id INT PRIMARY KEY NOT NULL, symbol CHAR(20) NOT NULL, name CHAR(20) NOT NULL, sector CHAR(20) NOT NULL, weight REAL NOT NULL, shares INT NOT NULL);";
 			if (CreateTable(spy_create_table.c_str(), stockDB) == -1)
 				return -1;
 			if (PopulateSPYTable(json_SPY_All_holdings, stockDB) == -1)
 				return -1;
 
-			string spy_select_table = "SELECT * FROM SPY;";
+			string spy_select_table = "SELECT * FROM SP500;";
 			if (GetStockSymbol(spy_select_table.c_str(), stockDB, Symbol) == -1)
 				return -1;
 
 		}
 		else if (option == 2)
 		{
+			int count = 1;
+			std::string stockDB_drop_table = "DROP TABLE IF EXISTS Fundamental;";
+			if (DropTable(stockDB_drop_table.c_str(), stockDB) == -1)
+				return -1;
+			string stockDB_create_table = "CREATE TABLE Fundamental (id INT PRIMARY KEY NOT NULL, symbol CHAR(20) NOT NULL, PERatio REAL NOT NULL, DividendYield REAL NOT NULL, Beta REAL NOT NULL, High_52Week REAL NOT NULL, Low_52Week REAL NOT NULL, MA_50Day REAL NOT NULL, MA_200Day REAL NOT NULL);";
+			if (CreateTable(stockDB_create_table.c_str(), stockDB) == -1)
+				return -1;
+
+			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
+			{
+				cout << *it << endl;
+
+				string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
+				Json::Value stockfundamental_root;
+				if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
+					return -1;
+				if (PopulateFundamentalTable(stockfundamental_root, count, *it, stockDB) == -1)
+					return -1;
+				count++;
+			}
+			
+		}
+		else if (option == 3)
+		{
+			//Populate Stock_SPY Table
+			std::string stockDB_drop_table = "DROP TABLE IF EXISTS Stock_SPY;";
+			if (DropTable(stockDB_drop_table.c_str(), stockDB) == -1)
+				return -1;
+			string stockDB_create_table = "CREATE TABLE Stock_SPY (id INT PRIMARY KEY NOT NULL, symbol CHAR(20) NOT NULL, date CHAR(20) NOT NULL, open REAL NOT NULL, high REAL NOT NULL, low REAL NOT NULL, close REAL NOT NULL, adjusted_close REAL NOT NULL, volume INT NOT NULL);";
+			if (CreateTable(stockDB_create_table.c_str(), stockDB) == -1)
+				return -1;
+			string stockDB_data_request = "https://eodhistoricaldata.com/api/eod/SPY.USfrom=2008-01-01&to=2019-07-31&api_token=5ba84ea974ab42.45160048&period=d&fmt=json";
+
+			Json::Value stockDB_root;   // will contains the root value after parsing.
+			if (RetrieveMarketData(stockDB_data_request, stockDB_root) == -1)
+				return -1;
+			if (PopulateStockTable(stockDB_root, "Stock_SPY", stockDB) == -1)
+				return -1;
+			string stockDB_select_table = "SELECT * FROM Stock_SPY;";
+			if (DisplayTable(stockDB_select_table.c_str(), stockDB) == -1)
+				return -1;
+
 			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
 			{
 				string stockDB_symbol = "Stock_" + *it;
@@ -149,6 +189,7 @@ int main(void)
 				}
 				else
 				{
+					// MSI's trading has several months gap, still want to keep it 
 					string stock_url_common = "https://eodhistoricaldata.com/api/eod/";
 					string stock_start_date1 = "2008-01-01";
 					string stock_end_date1 = "2017-11-20";
@@ -160,8 +201,8 @@ int main(void)
 					string stockDB_data_request2 = stock_url_common + *it + ".US?" +
 						"from=" + stock_start_date2 + "&to=" + stock_end_date2 + "&api_token=" + api_token + "&period=d&fmt=json";
 
-					Json::Value stockDB_root1;   // will contains the root value after parsing.
-					Json::Value stockDB_root2;   // will contains the root value after parsing.
+					Json::Value stockDB_root1;
+					Json::Value stockDB_root2; 
 					if (RetrieveMarketData(stockDB_data_request1, stockDB_root1) == -1)
 						return -1;
 					if (RetrieveMarketData(stockDB_data_request2, stockDB_root2) == -1)
@@ -174,30 +215,6 @@ int main(void)
 				if (DisplayTable(stockDB_select_table.c_str(), stockDB) == -1)
 					return -1;
 			}
-		}
-		else if (option == 3)
-		{
-			int count = 1;
-			std::string stockDB_drop_table = "DROP TABLE IF EXISTS Fundamental;";
-			if (DropTable(stockDB_drop_table.c_str(), stockDB) == -1)
-				return -1;
-			string stockDB_create_table = "CREATE TABLE Fundamental (id INT PRIMARY KEY NOT NULL, symbol CHAR(20) NOT NULL, PERatio REAL NOT NULL, DividendYield REAL NOT NULL, Beta REAL NOT NULL, High_52Week REAL NOT NULL, Low_52Week REAL NOT NULL, MA_50Day REAL NOT NULL, MA_200Day REAL NOT NULL);";
-			if (CreateTable(stockDB_create_table.c_str(), stockDB) == -1)
-				return -1;
-
-			for (vector<string>::iterator it = Symbol.begin(); it != Symbol.end(); it++)
-			{
-				cout << *it << endl;
-
-				string stockfundamental_data_request = "https://eodhistoricaldata.com/api/fundamentals/" + *it + ".US?api_token=5ba84ea974ab42.45160048";
-				Json::Value stockfundamental_root;
-				if (RetrieveMarketData(stockfundamental_data_request, stockfundamental_root) == -1)
-					return -1;
-				if (PopulateFundamentalTable(stockfundamental_root, count, *it, stockDB) == -1)
-					return -1;
-				count++;
-			}
-
 		}
 		else if (option == 4)
 		{
@@ -224,7 +241,7 @@ int main(void)
 
 			string fundamental_select_table = "SELECT * FROM Fundamental;";
 			string riskfreereturn_select_table = "SELECT * FROM RiskFreeReturn;";
-			string weight_select_table = "SELECT * FROM SPY;";
+			string weight_select_table = "SELECT * FROM SP500;";
 			int count = 1;
 			for (map<string, Stock>::iterator it = Stocks.begin(); it != Stocks.end(); it++)
 			{
@@ -305,6 +322,7 @@ int main(void)
 			cout << "The Best Portfolio: " << target_portfolio;
 
 			vector<string> portfolio_symbol = target_portfolio.GetSymbols();
+			//insert the symbols of portfolio's stocks into table
 			char portfolio_insert_table[512];
 			sprintf_s(portfolio_insert_table, "INSERT INTO Best_Portfolios (stock_1, stock_2, stock_3,stock_4,stock_5,stock_6,stock_7,stock_8,stock_9,stock_10 VALUES(\"%s\", \"%s\", \"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\",\"%s\")", portfolio_symbol[0].c_str(), portfolio_symbol[1].c_str(), portfolio_symbol[2].c_str(), portfolio_symbol[3].c_str(), portfolio_symbol[4].c_str(), portfolio_symbol[5].c_str(), portfolio_symbol[6].c_str(), portfolio_symbol[7].c_str(), portfolio_symbol[8].c_str(), portfolio_symbol[9].c_str());
 			if (InsertTable(portfolio_insert_table, stockDB) == -1)
@@ -312,6 +330,7 @@ int main(void)
 		}
 		else if (option == 7)
 		{
+			// the mondays and fridays from 2018-12-31 to 2019-07-01
 			string buy_day[] = { "2018-12-31","2019-01-07","2019-01-14","2019-01-22","2019-01-28","2019-02-04","2019-02-11","2019-02-19","2019-02-25","2019-03-04","2019-03-11","2019-03-18","2019-03-25","2019-04-01","2019-04-08","2019-04-15","2019-04-22","2019-04-29","2019-05-06","2019-05-13","2019-05-20","2019-05-28","2019-06-03","2019-06-10","2019-06-17","2019-06-24" };
 			string sell_day[] = { "2019-01-04","2019-01-11","2019-01-18","2019-01-25","2019-02-01","2019-02-08","2019-02-15","2019-02-22","2019-03-01","2019-03-08","2019-03-15","2019-03-22","2019-03-29","2019-04-05","2019-04-12","2019-04-18","2019-04-26","2019-05-03","2019-05-10","2019-05-17","2019-05-24","2019-05-31","2019-06-07","2019-06-14","2019-06-21","2019-06-28" };
 			
@@ -322,7 +341,7 @@ int main(void)
 			return -1;
 			for (vector<string>::iterator it = target_symbol.begin(); it != target_symbol.end(); it++)
 			{
-				string weight_select_table = "SELECT * FROM SPY;";
+				string weight_select_table = "SELECT * FROM SP500;";
 				Stock temp = Stock(*it);
 				if (GetWeight(weight_select_table.c_str(), stockDB, temp) == -1)
 					return -1;

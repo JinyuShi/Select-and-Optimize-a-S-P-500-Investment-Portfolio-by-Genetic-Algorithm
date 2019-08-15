@@ -16,6 +16,7 @@
 #include "json/json.h"
 #include <sqlite3.h>
 #include "MarketDataLogic.h"
+#include "Stock.h"
 
 using namespace std;
 
@@ -169,7 +170,7 @@ int GetStockSymbol(const char *sql_select, sqlite3 *db, vector<string> &Symbol)
 	for (int rowCtr = 1; rowCtr <= rows; ++rowCtr)
 	{
 		// Determine Cell Position of Symb
-		// id symbol name sector
+		// id symbol name sector weight shares
 		int cellPosition = (rowCtr * columns) + 1;
 
 		// Add Stock Symbol to Vector
@@ -463,8 +464,7 @@ int PopulateStockTable(const Json::Value & root, string symbol, sqlite3 *db)
 {
 	string date;
 	float open, high, low, close, adjusted_close;
-	int volume;
-	//Stock myStock(symbol);
+	unsigned long volume;
 	int count = 0;
 	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
 	{
@@ -595,49 +595,6 @@ int PopulateMSITable(const Json::Value & root1, const Json::Value & root2, strin
 	return 0;
 }
 
-int PopulateSP500Table(const Json::Value & root, sqlite3 *db)
-{
-	int count = 0;
-	string name, symbol, sector;
-	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
-	{
-		cout << *itr << endl;
-		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
-		{
-			//cout << inner.key() << ": " << *inner << endl;
-
-			if (inner.key().asString() == "Name")
-				name = inner->asString();
-			else if (inner.key().asString() == "Sector")
-				sector = inner->asString();
-			else if (inner.key() == "Symbol")
-				symbol = inner->asString();
-			else
-			{
-				cout << "Invalid json field" << endl;
-				system("pause");
-				return -1;
-			}
-		}
-		if (symbol == "BRK.B")
-			symbol = "BRK-B";
-		else if (symbol == "BF.B")
-			symbol = "BF-B";
-
-		if (symbol != "LUK" && symbol != "MON")
-		{
-			count++;
-
-			// Execute SQL
-			char sp500_insert_table[512];
-			sprintf_s(sp500_insert_table, "INSERT INTO SP500 (id, symbol, name, sector) VALUES(%d, \"%s\", \"%s\", \"%s\")", count, symbol.c_str(), name.c_str(), sector.c_str());
-			if (InsertTable(sp500_insert_table, db) == -1)
-				return -1;
-		}
-	}
-	return 0;
-}
-
 int PopulateFundamentalTable(const Json::Value & root, int &count, string symbol, sqlite3 *db)
 {
 	float peratio, divyield, beta, high52, low52, ma50, ma200;
@@ -747,43 +704,6 @@ int PopulateRiskFreeReturnTable(const Json::Value & root, sqlite3 *db)
 	return 0;
 }
 
-int PopulateNewSP500Table(const Json::Value & root, sqlite3 *db)
-{
-	int count = 0;
-	string name, symbol, sector;
-	for (Json::Value::const_iterator itr = root.begin(); itr != root.end(); itr++)
-	{
-		cout << *itr << endl;
-		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
-		{
-			//cout << inner.key() << ": " << *inner << endl;
-
-			if (inner.key().asString() == "Security")
-				name = inner->asString();
-			else if (inner.key().asString() == "GICS Sector")
-				sector = inner->asString();
-			else if (inner.key() == "Symbol")
-				symbol = inner->asString();
-		}
-		if (symbol == "BRK.B")
-			symbol = "BRK-B";
-		else if (symbol == "BF.B")
-			symbol = "BF-B";
-
-		if (symbol != "LUK" && symbol != "MON")
-		{
-			count++;
-
-			// Execute SQL
-			char sp500_insert_table[512];
-			sprintf_s(sp500_insert_table, "INSERT INTO SP500 (id, symbol, name, sector) VALUES(%d, \"%s\", \"%s\", \"%s\")", count, symbol.c_str(), name.c_str(), sector.c_str());
-			if (InsertTable(sp500_insert_table, db) == -1)
-				return -1;
-		}
-	}
-	return 0;
-}
-
 int PopulateSPYTable(const Json::Value & root, sqlite3 *db)
 {
 	int count = 0;
@@ -795,8 +715,6 @@ int PopulateSPYTable(const Json::Value & root, sqlite3 *db)
 		cout << *itr << endl;
 		for (Json::Value::const_iterator inner = (*itr).begin(); inner != (*itr).end(); inner++)
 		{
-			//cout << inner.key() << ": " << *inner << endl;
-
 			if (inner.key().asString() == "Name")
 				name = inner->asString();
 			else if (inner.key().asString() == "Sector")
