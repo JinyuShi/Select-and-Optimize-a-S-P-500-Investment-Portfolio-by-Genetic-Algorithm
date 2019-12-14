@@ -177,7 +177,7 @@ int main(void)
 					string stock_url_common = "https://eodhistoricaldata.com/api/eod/";
 					string stock_start_date = "2008-01-01";
 					string stock_end_date = "2019-07-31";
-					string api_token = "5ba84ea974ab42.45160048";
+					string api_token = "";
 					string stockDB_data_request = stock_url_common + *it + ".US?" +
 						"from=" + stock_start_date + "&to=" + stock_end_date + "&api_token=" + api_token + "&period=d&fmt=json";
 
@@ -195,7 +195,7 @@ int main(void)
 					string stock_end_date1 = "2017-11-20";
 					string stock_start_date2 = "2018-01-02";
 					string stock_end_date2 = "2019-07-31";
-					string api_token = "5ba84ea974ab42.45160048";
+					string api_token = "";
 					string stockDB_data_request1 = stock_url_common + *it + ".US?" +
 						"from=" + stock_start_date1 + "&to=" + stock_end_date1 + "&api_token=" + api_token + "&period=d&fmt=json";
 					string stockDB_data_request2 = stock_url_common + *it + ".US?" +
